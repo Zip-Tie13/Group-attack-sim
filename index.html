@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SINISTER SIX Group Attack Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101318;color:#eee;font-family:Arial,sans-serif}
+header{background:#191e26;padding:16px;text-align:center;border-bottom:2px solid #b32323}
+h1{margin:0;color:#e33;font-size:23px}
+h2{font-size:19px}
+.panel{background:#1c222c;border:1px solid #343d4b;border-radius:9px;padding:14px;margin:12px}
+input,button{padding:12px;border-radius:6px;border:1px solid #465266;font-size:15px}
+input{width:100%;background:#10151d;color:white;margin:6px 0}
+button{background:#a52222;color:white;border:0;font-weight:bold;cursor:pointer;margin:4px}
+button:disabled{opacity:.4}
+.blue{background:#1767ad}
+.green{background:#187b43}
+.gray{background:#444d5b}
+.hidden{display:none}
+.status{color:#9cdaab;font-size:13px}
+.weapons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.weapon{background:#252e3b;border:1px solid #465266;padding:12px;border-radius:8px}
+.weapon button{width:100%;margin:7px 0 0}
+.opponent{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.person{font-size:55px}
+.bubble{background:#1767ad;border-radius:50%;padding:10px 14px;font-weight:bold}
+.health{height:15px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}
+.health div{height:100%;width:100%;background:#36a45b}
+#log{height:150px;overflow:auto;background:#0c1016;padding:10px;border-radius:6px;font-size:13px}
+.small{font-size:12px;color:#aab4c3}
+#chatBox{height:100px;overflow:auto;background:#0c1016;padding:8px}
+</style>
+</head>
+<body>
+<header>
+<h1>SINISTER SIX</h1>
+<div class="small">GROUP ATTACK PRACTICE SIMULATOR</div>
+</header>
+
+<section id="login" class="panel">
+<h2>Faction Member Login</h2>
+<p>Enter your Torn API key to verify your faction membership.</p>
+<input id="apiKey" type="password" placeholder="Your Torn API key" autocomplete="off">
+<button class="green" onclick="login()">VERIFY AND LOGIN</button>
+<p id="loginMessage" class="status"></p>
+<p class="small">Your API key is sent to your simulator's secure login function. Do not share it with anyone.</p>
+</section>
+
+<main id="game" class="hidden">
+<section class="panel">
+<div class="opponent">
+<div>
+<h2 id="playerName">Faction Member</h2>
+<div class="status">Practice battle</div>
+</div>
+<div class="person">🧍 <span class="bubble" id="attackNumber">1</span></div>
+</div>
+<h2>Practice Opponent</h2>
+<div class="opponent">
+<strong>Training Target</strong>
+<strong id="hpText">2500 / 2500 HP</strong>
+</div>
+<div class="health"><div id="hpBar"></div></div>
+<button class="blue" onclick="resetBattle()">RESET PRACTICE BATTLE</button>
+</section>
+
+<section class="panel">
+<h2>Weapons</h2>
+<div class="weapons">
+<div class="weapon">
+<strong>🔫 Primary Weapon</strong>
+<p class="small">Rifle — 3 shots</p>
+<button onclick="attack('Rifle',3)">FIRE RIFLE</button>
+</div>
+<div class="weapon">
+<strong>🔫 Secondary Weapon</strong>
+<p class="small">Pistol — 10 shots</p>
+<button onclick="attack('Pistol',10)">FIRE PISTOL</button>
+</div>
+<div class="weapon">
+<strong>🔪 Melee</strong>
+<p class="small">Knife — unlimited practice use</p>
+<button onclick="attack('Knife',1)">USE KNIFE</button>
+</div>
+<div class="weapon">
+<strong>💥 Temporary</strong>
+<p class="small">Flashbang — one use per round</p>
+<button id="tempButton" onclick="flashbang()">THROW FLASHBANG</button>
+</div>
+</div>
+<p class="small">Practice damage is simulated and does not use real Torn energy or items.</p>
+</section>
+
+<section class="panel">
+<h2>Battle Controls</h2>
+<button class="green" onclick="ready()">READY</button>
+<button class="blue" onclick="startBattle()">START PRACTICE</button>
+<button class="gray" onclick="watch()">WATCH</button>
+<p id="battleStatus" class="status">Waiting for practice round.</p>
+</section>
+
+<section class="panel">
+<h2>Attack Log</h2>
+<div id="log">Simulator ready. Log in to begin.</div>
+</section>
+
+<section class="panel">
+<h2>Leader Settings</h2>
+<label><input type="checkbox" id="deathToggle" style="width:auto"> Enable practice deaths</label>
+<br>
+<label><input type="checkbox" id="shuffleToggle" style="width:auto"> Shuffle player positions</label>
+<br>
+<label><input type="checkbox" id="botToggle" style="width:auto"> Allow practice bots</label>
+<br>
+<button class="blue" onclick="saveSettings()">SAVE SETTINGS</button>
+<p class="small">These controls are currently local practice settings.</p>
+</section>
+
+<section class="panel">
+<h2>Group Chat</h2>
+<button class="blue" onclick="toggleChat()">OPEN / CLOSE CHAT</button>
+<div id="chatPanel" class="hidden">
+<div id="chatBox"></div>
+<input id="chatMessage" placeholder="Practice message">
+<button onclick="sendChat()">SEND</button>
+</div>
+<p class="small">Chat is a local demonstration until multiplayer is connected.</p>
+</section>
+</main>
+
+<script>
+const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
+
+let client = null;
+let player = null;
+let hp = 2500;
+let attackCount = 1;
+let flashUsed = false;
+let readyState = false;
+
+function log(message){
+  const box=document.getElementById("log");
+  box.innerHTML += "<div>"+new Date().toLocaleTimeString()+" — "+message+"</div>";
+  box.scrollTop=box.scrollHeight;
+}
+
+async function login(){
+  const key=document.getElementById("apiKey").value.trim();
+  const message=document.getElementById("loginMessage");
+
+  if(!key){message.textContent="Enter your Torn API key.";return;}
+
+  if(SUPABASE_URL.includes("PASTE_") || SUPABASE_ANON_KEY.includes("PASTE_")){
+    message.textContent="Supabase project URL and publishable key still need to be added.";
+    return;
+  }
+
+  try{
+    message.textContent="Verifying your Torn account...";
+    client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+    const {data,error}=await client.functions.invoke("torn-login",{
+      body:{apiKey:key}
+    });
+
+    if(error) throw error;
+    if(!data || !data.success) throw new Error(data?.error || "Login failed.");
+
+    player=data;
+    document.getElementById("playerName").textContent=data.playerName;
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+    document.getElementById("apiKey").value="";
+    log(data.playerName+" verified as a SINISTER SIX member.");
+  }catch(error){
+    message.textContent=error.message || "Unable to verify account.";
+  }
+}
+
+function attack(weapon,shots){
+  if(!player)return;
+  if(hp<=0){log("Target defeated. Reset the practice battle.");return;}
+  const damage=weapon==="Rifle"?150:weapon==="Pistol"?45:100;
+  const total=Math.min(hp,damage);
+  hp-=total;
+  attackCount++;
+  updateHealth();
+  log(player.playerName+" used "+weapon+" ("+shots+" practice shot"+(shots===1?"":"s")+") for "+total+" damage.");
+  if(hp===0)log("Training target defeated!");
+}
+
+function flashbang(){
+  if(flashUsed){log("Flashbang already used this round.");return;}
+  flashUsed=true;
+  document.getElementById("tempButton").disabled=true;
+  log(player.playerName+" threw a flashbang. Opponent dexterity practice effect: reduced by 50%.");
+}
+
+function updateHealth(){
+  document.getElementById("hpText").textContent=hp+" / 2500 HP";
+  document.getElementById("hpBar").style.width=(hp/2500*100)+"%";
+  document.getElementById("attackNumber").textContent=attackCount;
+}
+
+function resetBattle(){
+  hp=2500;attackCount=1;flashUsed=false;
+  document.getElementById("tempButton").disabled=false;
+  updateHealth();
+  log("Practice battle reset.");
+}
+
+function ready(){
+  readyState=true;
+  document.getElementById("battleStatus").textContent="You are READY. Waiting for the practice leader.";
+  log(player.playerName+" is ready.");
+}
+
+function startBattle(){
+  if(!readyState){
+    document.getElementById("battleStatus").textContent="Press READY before starting.";
+    return;
+  }
+  document.getElementById("battleStatus").textContent="Local practice round started.";
+  log("Practice round started.");
+}
+
+function watch(){
+  document.getElementById("battleStatus").textContent="Watching practice mode.";
+  log(player.playerName+" is watching.");
+}
+
+function saveSettings(){
+  log("Local practice settings saved.");
+}
+
+function toggleChat(){
+  document.getElementById("chatPanel").classList.toggle("hidden");
+}
+
+function sendChat(){
+  const input=document.getElementById("chatMessage");
+  if(!input.value.trim())return;
+  const line=document.createElement("div");
+  line.textContent=player.playerName+": "+input.value;
+  document.getElementById("chatBox").appendChild(line);
+  input.value="";
+}
+</script>
+</body>
+</html>
