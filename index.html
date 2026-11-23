@@ -36,7 +36,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .weapon-pic{width:100%;min-height:62px;margin:0;padding:5px 2px;border:1px solid #526176;border-radius:10px;background:linear-gradient(145deg,#303d4e,#1a222d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .weapon-pic .weapon-icon{font-size:32px;line-height:1.1}
 .weapon-pic .weapon-label{font-size:9px;color:#dce5f1;letter-spacing:.3px}
-.weapon-pic:active{transform:scale(.96)}
+.weapon-pic{touch-action:manipulation;-webkit-tap-highlight-color:transparent}.weapon-pic:active{transform:scale(.96)}
 @media(max-width:420px){.arena{grid-template-columns:76px minmax(0,1fr);min-height:260px}.fighter-stage{min-height:260px}.fighter{font-size:clamp(145px,43vw,205px)}.weapon-pic{min-height:58px}.weapon-pic .weapon-icon{font-size:29px}}
 .health{height:14px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}.health div{height:100%;width:100%;background:#36a45b}
 #log{height:150px;overflow:auto;background:#0c1016;padding:10px;border-radius:6px;font-size:13px}
@@ -111,10 +111,10 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
  <div class="weapon-dock" aria-label="Practice weapons">
-  <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onclick="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
-  <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onclick="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
-  <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onclick="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
-  <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onclick="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
+  <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onpointerdown="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
+  <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onpointerdown="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
+  <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onpointerdown="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
+  <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onpointerdown="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
  </div>
  <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span></div>
 </div>
@@ -410,7 +410,7 @@ function runBotTurns(){
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=Math.max(1,Math.round((strength/18)*(0.70+Math.random()*0.48)));
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
- const delay=440+Math.floor(Math.random()*751);
+ const delay=550+Math.floor(Math.random()*939);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
