@@ -291,8 +291,10 @@ function activeTurnOrder(){
  return (game.turnOrder||[]).filter(id=>!dead.has(String(id)));
 }
 function updateTurnPosition(){
- const active=activeTurnOrder();const idx=active.indexOf(String(game.currentTurnId));
- game.attackNumber=active.length?(idx>=0?idx+1:1):0;
+ const active=activeTurnOrder();
+ // The correct attack number is always one less than the living participant count.
+ // Recalculate after every attack so eliminations immediately lower the required number.
+ game.attackNumber=Math.max(0,active.length-1);
  $("attackNumber").textContent=game.attackNumber||"—";
  $("participantCount").textContent=active.length+" LEFT";
 }
@@ -318,7 +320,7 @@ function flashbang(){
  if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
  if(game.memberDeaths&&(game.playerHp[me]||1000)<=0)return;
  game.tempUsedBy=game.tempUsedBy||{};if(game.tempUsedBy[me])return;
- const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
+ const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function applyAttack(p,local){
@@ -331,14 +333,12 @@ function applyAttack(p,local){
  const actorIndex=activeOrder.indexOf(actor);
  // Expected slot is always one less than the number of living members and bots.
  // The leader snapshots it into the broadcast so every device uses the same count.
- const liveExpectedPosition=Math.max(0,activeOrder.length-1);
- const liveExpectedActor=liveExpectedPosition?String(activeOrder[liveExpectedPosition-1]||""):"";
- const expectedPosition=Number.isFinite(Number(p.expectedPosition))?Number(p.expectedPosition):liveExpectedPosition;
- const expectedActor=p.expectedTurnId?String(p.expectedTurnId):liveExpectedActor;
- const actualPosition=Number.isFinite(Number(p.actualPosition))?Number(p.actualPosition):(actorIndex+1);
- const outOfTurn=!!(expectedActor&&actor!==expectedActor);
+ const expectedPosition=Math.max(0,activeOrder.length-1);
+ const actualPosition=actorIndex+1;
+ // Compare the attacker's current living-roster position with the required
+ // position (one less than the number of living members and bots).
+ const outOfTurn=actualPosition!==expectedPosition;
  p.expectedPosition=expectedPosition;
- p.expectedTurnId=expectedActor;
  p.actualPosition=actualPosition;
  game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expectedActor});
  game.lastAttackAt[actor]=at;
