@@ -111,10 +111,10 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
  <div class="weapon-dock" aria-label="Practice weapons">
-  <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onpointerdown="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
-  <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onpointerdown="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
-  <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onpointerdown="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
-  <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onpointerdown="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
+  <button type="button" class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onclick="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
+  <button type="button" class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onclick="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
+  <button type="button" class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onclick="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
+  <button type="button" class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onclick="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
  </div>
  <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span></div>
 </div>
@@ -410,7 +410,7 @@ function runBotTurns(){
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=100;
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
- const delay=550+Math.floor(Math.random()*939);
+ const delay=800+Math.floor(Math.random()*1001);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
