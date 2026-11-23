@@ -48,6 +48,10 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
 @media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}\n.attack-log-panel{grid-column:1/-1!important;margin-top:0}.attack-log-panel #log{height:125px;min-height:125px;overflow-y:auto;scroll-behavior:smooth}
+.attack-log-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;position:relative}
+.attack-log-heading h2{margin:0}
+.active-count-bubble{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:7px 11px;border-radius:999px;background:#facc15;color:#241b00;border:2px solid #fde68a;font-size:12px;font-weight:900;letter-spacing:.4px;white-space:nowrap;box-shadow:0 2px 8px #0006}
+
 .report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
 </head>
 <body>
@@ -106,7 +110,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
   <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onclick="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
   <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onclick="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
  </div>
- <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span><span class="participant-count" id="participantCount">0 ACTIVE</span></div>
+ <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span></div>
 </div>
 <div id="battleNotice" class="status"></div>
 <p class="small">Tap a weapon picture to attack. All damage is simulated; no real Torn energy, weapons, or items are used.</p>
@@ -121,7 +125,8 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div id="outOfTurnDetails" class="small"></div>
 </section>
 <section class="panel wide attack-log-panel">
-<h2>Attack Log</h2><div id="log">Room battle ready.</div>
+<div class="attack-log-heading"><h2>Attack Log</h2><span id="participantCount" class="active-count-bubble">0 LEFT</span></div>
+<div id="log">Room battle ready.</div>
 <div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
 </section>
 
@@ -279,7 +284,7 @@ function updateTurnPosition(){
  const active=activeTurnOrder();const idx=active.indexOf(String(game.currentTurnId));
  game.attackNumber=active.length?(idx>=0?idx+1:1):0;
  $("attackNumber").textContent=game.attackNumber||"—";
- $("participantCount").textContent=active.length+" ACTIVE";
+ $("participantCount").textContent=active.length+" LEFT";
 }
 function advanceAttackTurn(){
  const order=activeTurnOrder();if(!order.length){game.currentTurnId="";updateTurnPosition();return;}
