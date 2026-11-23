@@ -319,11 +319,10 @@ function activeTurnOrder(){
 }
 function updateTurnPosition(){
   const active=activeTurnOrder();
-  // Blue starts at 1, stays there for the first two attackers, then advances.
-  // It is capped at one less than the number of living participants (yellow).
+  // Before the first attack, show 1. After an attack, blue is always
+  // exactly one less than the yellow number of living participants.
   const limit=Math.max(0,active.length-1);
-  const current=Number(game.attackNumber);
-  game.attackNumber=limit===0?0:Math.min(Math.max(1,Number.isFinite(current)?current:1),limit);
+  game.attackNumber=game.attacks&&game.attacks.length>0?limit:(limit===0?0:1);
   $("attackNumber").textContent=game.attackNumber||"—";
   $("participantCount").textContent=active.length+" LEFT";
 }
@@ -335,9 +334,8 @@ function advanceAttackTurn(wasCorrect){
     const candidate=String(all[(Math.max(-1,current)+step)%all.length]);
     if(!dead.has(candidate)){game.currentTurnId=candidate;break;}
   }
-  // Advance the blue counter immediately after every accepted attack.
-  // The display is capped at one less than the number of living participants.
-  game.attackNumber=(Number(game.attackNumber)||1)+1;
+  // Recalculate immediately after the attack so blue becomes one less
+  // than the current yellow participant count.
   updateTurnPosition();
 }
 function attack(weapon){
