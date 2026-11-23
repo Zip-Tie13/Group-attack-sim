@@ -352,7 +352,7 @@ function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
  if(game.memberDeaths&&(game.playerHp[me]||1000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
- const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
+ const retaliation=Math.max(1,Math.round((game.opponent.strength||500)*3/100));
  const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
@@ -418,7 +418,7 @@ function runBotTurns(){
  const damage=Math.min(200,Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44))));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  // Use the leader-saved opponent strength for bot retaliation, just as for human players.
- const retaliation=Math.max(1,Math.round((Number(game.opponent?.strength)||500)/100));
+ const retaliation=Math.max(1,Math.round((Number(game.opponent?.strength)||500)*3/100));
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
  const delay=800+Math.floor(Math.random()*1001);
  setTimeout(()=>{
