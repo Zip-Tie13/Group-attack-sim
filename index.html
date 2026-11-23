@@ -40,7 +40,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 #chatWindow{position:fixed;bottom:66px;right:10px;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
-@media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}
+@media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}\n.attack-log-panel{grid-column:1/-1!important;margin-top:0}.attack-log-panel #log{height:125px;min-height:125px;overflow-y:auto;scroll-behavior:smooth}
 </style>
 </head>
 <body>
@@ -97,7 +97,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <p class="small">Tap a weapon picture to attack. All damage is simulated; no real Torn energy, weapons, or items are used.</p>
 </section>
 
-<section class="panel">
+<section class="panel wide attack-log-panel">
 <h2>Attack Log</h2><div id="log">Room battle ready.</div>
 <div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
 </section>
