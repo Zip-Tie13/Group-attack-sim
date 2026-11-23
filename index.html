@@ -164,12 +164,28 @@ async function login(){
     message.textContent="Verifying your Torn account...";
     client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-    const {data,error}=await client.functions.invoke("torn-login",{
-      body:{apiKey:key}
-    });
+    const response = await fetch(
+  SUPABASE_URL + "/functions/v1/torn-login",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({apiKey:key})
+  }
+);
 
-    if(error) throw error;
-    if(!data || !data.success) throw new Error(data?.error || "Login failed.");
+const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(data.error || "Login failed.");
+}
+
+if (!data || !data.success) {
+  throw new Error(data?.error || "Login failed.");
+}
 
     player=data;
     document.getElementById("playerName").textContent=data.playerName;
