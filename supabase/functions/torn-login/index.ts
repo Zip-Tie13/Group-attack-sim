@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const tornResponse = await fetch(
-      `https://api.torn.com/user/?selections=basic&key=${encodeURIComponent(apiKey)}`
+      `https://api.torn.com/user/?selections=basic,faction&key==${encodeURIComponent(apiKey)}`
     );
 
     const player = await tornResponse.json();
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
     if (factionId !== 57348) {
       return reply({
         success: false,
-        error: "Your Torn account is not a member of SINISTER SIX.",
+        error: "Your Torn account is not a member of SINISTER SICKS.",
       }, 403);
     }
 
