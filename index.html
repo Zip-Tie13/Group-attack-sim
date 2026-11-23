@@ -347,14 +347,14 @@ function attack(weapon){
  if(game.memberDeaths&&(game.playerHp[me]||1000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
- const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,attackAt:Date.now()};
+ const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function flashbang(){
  if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
  if(game.memberDeaths&&(game.playerHp[me]||1000)<=0)return;
  game.tempUsedBy=game.tempUsedBy||{};if(game.tempUsedBy[me])return;
- const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,attackAt:Date.now()};
+ const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function applyAttack(p,local){
@@ -411,8 +411,8 @@ function runBotTurns(){
  const damage=Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44)));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=Math.max(1,Math.round((strength/18)*(0.70+Math.random()*0.48)));
- const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,attackAt:0};
- const delay=700+Math.floor(Math.random()*1201);
+ const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
+ const delay=350+Math.floor(Math.random()*601);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
