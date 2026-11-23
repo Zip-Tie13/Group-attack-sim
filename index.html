@@ -422,7 +422,7 @@ function applyAttack(p,local){
  p.outOfTurnAtSource=outOfTurn;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});game.outOfTurnCounts=game.outOfTurnCounts||{};if(outOfTurn)game.outOfTurnCounts[actor]=(Number(game.outOfTurnCounts[actor])||0)+1;
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,outOfTurnAtSource:p.outOfTurnAtSource===true,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});game.outOfTurnCounts=game.outOfTurnCounts||{};if(outOfTurn)game.outOfTurnCounts[actor]=(Number(game.outOfTurnCounts[actor])||0)+1;
  game.lastAttackAt[actor]=at;
  if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — current position #"+(actorIndex+1)+"; expected position #"+expectedPosition+".":""))}
  else{
@@ -490,7 +490,7 @@ $("battle").classList.remove("hidden");
  participants.forEach(person=>{
   const mine=rows.filter(a=>String(a.actorId||a.playerId||"")===person.id);
   // Count from the individual attack records as well as the saved counter, so the result survives state sync.
-  const flagged=mine.filter(a=>a.outOfTurn===true||a.outOfTurn===1||String(a.outOfTurn).toLowerCase()==="true"||(a.expectedTurnId!=null&&String(a.expectedTurnId)!==person.id)).length;
+  const flagged=mine.filter(a=>a.outOfTurn===true||a.outOfTurnAtSource===true||a.outOfTurn===1||String(a.outOfTurn).toLowerCase()==="true").length;
   const saved=Number((game.outOfTurnCounts||{})[person.id])||0;
   const outCount=Math.max(flagged,saved);
   const intervals=mine.slice(1).map(a=>Number(a.elapsed)||0);const avg=intervals.length?intervals.reduce((sum,n)=>sum+n,0)/intervals.length:0;
