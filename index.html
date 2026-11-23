@@ -148,8 +148,8 @@ function log(message){
   box.innerHTML += "<div>"+new Date().toLocaleTimeString()+" — "+message+"</div>";
   box.scrollTop=box.scrollHeight;
 }
-
 async function login(){
+
   const key=document.getElementById("apiKey").value.trim();
   const message=document.getElementById("loginMessage");
 
