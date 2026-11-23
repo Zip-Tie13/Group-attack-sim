@@ -398,7 +398,8 @@ function flashbang(){
 function applyAttack(p,local){
  if(!p||!game.started)return;
  const actor=String(p.actorId||p.playerId||"");
- game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;const expected=String(p.expectedTurnId||game.currentTurnId||"");const at=Number(p.attackAt)||Date.now();
+ game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;// The leader room state is authoritative for remote attacks; do not trust a stale sender turn pointer.
+ const expected=String((isLeader&&!local)?(game.currentTurnId||""):(p.expectedTurnId||game.currentTurnId||""));const at=Number(p.attackAt)||Date.now();
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const activeOrder=activeTurnOrder();
@@ -407,7 +408,11 @@ function applyAttack(p,local){
  const expectedIndex=activeOrder.indexOf(expectedActor);
  const expectedPosition=expectedIndex>=0?expectedIndex+1:0;
  const actualPosition=actorIndex+1;
- const outOfTurn=actor!==expectedActor;
+ const actorIsBot=!!p.isBot||bots.some(b=>String(b.id)===actor);
+ const blue=Number(game.attackNumber)||0;
+ const liveWindow=Math.max(0,activeOrder.length-1);
+ const wrongBlue=actorIsBot?blue>=liveWindow:blue!==liveWindow;
+ const outOfTurn=actor!==expectedActor||wrongBlue;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
  game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});
@@ -418,7 +423,7 @@ function applyAttack(p,local){
   const actorHpId=String(p.actorId||p.playerId||"");
   const takesDamage=p.isBot?!!game.botDeaths:!!game.memberDeaths;
   if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
-  addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
+  addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage."+(outOfTurn?" — OUT OF TURN (actual #"+actualPosition+", expected #"+expectedPosition+", blue "+blue+"/"+liveWindow+").":""));
  }
  advanceAttackTurn(!outOfTurn,actor);renderGame();
  if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
