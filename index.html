@@ -1,271 +1,239 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SINISTER SIX Group Attack Simulator</title>
+<meta name="theme-color" content="#101318">
+<title>SINISTER SICKS Group Attack Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#101318;color:#eee;font-family:Arial,sans-serif}
-header{background:#191e26;padding:16px;text-align:center;border-bottom:2px solid #b32323}
-h1{margin:0;color:#e33;font-size:23px}
-h2{font-size:19px}
+*{box-sizing:border-box}body{margin:0;background:#101318;color:#eee;font-family:Arial,sans-serif;padding-bottom:72px}
+header{background:#191e26;padding:15px;text-align:center;border-bottom:2px solid #b32323;position:sticky;top:0;z-index:5}
+h1{margin:0;color:#e33;font-size:22px}h2{font-size:18px;margin:0 0 12px}
 .panel{background:#1c222c;border:1px solid #343d4b;border-radius:9px;padding:14px;margin:12px}
-input,button{padding:12px;border-radius:6px;border:1px solid #465266;font-size:15px}
-input{width:100%;background:#10151d;color:white;margin:6px 0}
+input,button{padding:11px;border-radius:6px;border:1px solid #465266;font-size:14px}
+input{background:#10151d;color:white;margin:5px 0;width:100%}input[type=checkbox]{width:auto}
 button{background:#a52222;color:white;border:0;font-weight:bold;cursor:pointer;margin:4px}
-button:disabled{opacity:.4}
-.blue{background:#1767ad}
-.green{background:#187b43}
-.gray{background:#444d5b}
-.hidden{display:none}
-.status{color:#9cdaab;font-size:13px}
-.weapons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.weapon{background:#252e3b;border:1px solid #465266;padding:12px;border-radius:8px}
-.weapon button{width:100%;margin:7px 0 0}
-.opponent{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.person{font-size:55px}
+button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{background:#187b43}.gray{background:#444d5b}
+.hidden{display:none!important}.status{color:#9cdaab;font-size:13px}.small{font-size:12px;color:#aab4c3}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.weapons{display:flex;flex-direction:column;gap:9px}
+.weapon{background:#252e3b;border:1px solid #465266;padding:12px;border-radius:8px}.weapon button{width:100%;margin:7px 0 0}
+.opponent{display:flex;align-items:center;justify-content:space-between;gap:12px}.person{font-size:54px}
 .bubble{background:#1767ad;border-radius:50%;padding:10px 14px;font-weight:bold}
-.health{height:15px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}
-.health div{height:100%;width:100%;background:#36a45b}
+.health{height:14px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}.health div{height:100%;width:100%;background:#36a45b}
 #log{height:150px;overflow:auto;background:#0c1016;padding:10px;border-radius:6px;font-size:13px}
-.small{font-size:12px;color:#aab4c3}
-#chatBox{height:100px;overflow:auto;background:#0c1016;padding:8px}
+.member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
+.ready{color:#7de39a;font-weight:bold}.notready{color:#e8b85b}.dead{color:#ff7777}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.statgrid label{font-size:12px;color:#aab4c3}
+#chatPopup{position:fixed;bottom:10px;right:10px;z-index:10;border-radius:25px;padding:13px 18px}
+#chatWindow{position:fixed;bottom:66px;right:10px;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
+#chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
+#chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
+@media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}
 </style>
 </head>
 <body>
-<header>
-<h1>SINISTER SIX</h1>
-<div class="small">GROUP ATTACK PRACTICE SIMULATOR</div>
-</header>
+<header><h1>SINISTER SICKS</h1><div class="small">GROUP ATTACK PRACTICE SIMULATOR</div></header>
 
 <section id="login" class="panel">
 <h2>Faction Member Login</h2>
-<p>Enter your Torn API key to verify your faction membership.</p>
+<p>Verify your Torn account to enter the simulator.</p>
 <input id="apiKey" type="password" placeholder="Your Torn API key" autocomplete="off">
 <button class="green" onclick="login()">VERIFY AND LOGIN</button>
 <p id="loginMessage" class="status"></p>
-<p class="small">Your API key is sent to your simulator's secure login function. Do not share it with anyone.</p>
+<p class="small">Your API key is sent only to the simulator's secure login function. It is not displayed to other members.</p>
 </section>
 
-<main id="game" class="hidden">
+<main id="lobby" class="hidden">
 <section class="panel">
-<div class="opponent">
-<div>
-<h2 id="playerName">Faction Member</h2>
-<div class="status">Practice battle</div>
+<div class="row"><div><h2 id="welcome">Faction Member</h2><div class="small">Verified SINISTER SICKS member</div></div><button class="gray" onclick="logout()">LOG OUT</button></div>
+<h2 style="margin-top:14px">Practice Room</h2>
+<p class="small">Create a room as leader, or enter the room code shared by your faction leader.</p>
+<button class="green" onclick="createRoom()">CREATE ROOM</button>
+<div class="row"><input id="roomInput" maxlength="6" placeholder="Enter 6-character room code" style="flex:1;text-transform:uppercase"><button class="blue" onclick="joinRoom()">JOIN ROOM</button></div>
+<p id="roomMessage" class="status"></p>
+</section>
+</main>
+
+<main id="room" class="hidden">
+<section class="panel">
+<div class="row"><div><h2>ROOM <span id="roomCodeLabel"></span></h2><div id="leaderLabel" class="status"></div></div><button class="gray" onclick="leaveRoom()">LEAVE ROOM</button></div>
+<div id="memberList"></div>
+<p id="readyStatus" class="status">Waiting for the leader to call ready.</p>
+<div id="leaderLobbyControls" class="hidden">
+<button class="blue" onclick="beginReadyCheck()">CALL READY CHECK (15 SECONDS)</button>
+<button class="green" id="startButton" onclick="startBattle()" disabled>START PRACTICE</button>
 </div>
-<div class="person">🧍 <span class="bubble" id="attackNumber">1</span></div>
-</div>
-<h2>Practice Opponent</h2>
-<div class="opponent">
-<strong>Training Target</strong>
-<strong id="hpText">2500 / 2500 HP</strong>
-</div>
+<div id="memberLobbyControls"><button class="green" id="readyButton" onclick="setReady(true)">I'M READY</button></div>
+</section>
+
+<section id="battle" class="hidden">
+<div class="battlegrid">
+<section class="panel wide">
+<div class="opponent"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 1000 / 1000</div></div><div class="person">🧍 <span class="bubble" id="attackNumber">1</span></div></div>
+<h2>Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
-<button class="blue" onclick="resetBattle()">RESET PRACTICE BATTLE</button>
+<div id="battleNotice" class="status"></div>
+<button class="gray" onclick="resetBattle()">RESET PRACTICE BATTLE</button>
 </section>
 
 <section class="panel">
 <h2>Weapons</h2>
 <div class="weapons">
-<div class="weapon">
-<strong>🔫 Primary Weapon</strong>
-<p class="small">Rifle — 3 shots</p>
-<button onclick="attack('Rifle',3)">FIRE RIFLE</button>
+<div class="weapon"><strong>🔫 Primary Weapon</strong><p class="small">Rifle — 3 practice rounds</p><button onclick="attack('Rifle')">FIRE RIFLE</button></div>
+<div class="weapon"><strong>🔫 Secondary Weapon</strong><p class="small">Pistol — 10 practice rounds</p><button onclick="attack('Pistol')">FIRE PISTOL</button></div>
+<div class="weapon"><strong>🔪 Melee</strong><p class="small">Knife — practice use</p><button onclick="attack('Knife')">USE KNIFE</button></div>
+<div class="weapon"><strong>💥 Temporary</strong><p class="small">Flashbang — reduces target dexterity by 50% for this round</p><button id="tempButton" onclick="flashbang()">THROW FLASHBANG</button></div>
 </div>
-<div class="weapon">
-<strong>🔫 Secondary Weapon</strong>
-<p class="small">Pistol — 10 shots</p>
-<button onclick="attack('Pistol',10)">FIRE PISTOL</button>
-</div>
-<div class="weapon">
-<strong>🔪 Melee</strong>
-<p class="small">Knife — unlimited practice use</p>
-<button onclick="attack('Knife',1)">USE KNIFE</button>
-</div>
-<div class="weapon">
-<strong>💥 Temporary</strong>
-<p class="small">Flashbang — one use per round</p>
-<button id="tempButton" onclick="flashbang()">THROW FLASHBANG</button>
-</div>
-</div>
-<p class="small">Practice damage is simulated and does not use real Torn energy or items.</p>
+<p class="small">All attacks and damage are simulated. No real Torn energy, weapons, or items are used.</p>
 </section>
 
 <section class="panel">
-<h2>Battle Controls</h2>
-<button class="green" onclick="ready()">READY</button>
-<button class="blue" onclick="startBattle()">START PRACTICE</button>
-<button class="gray" onclick="watch()">WATCH</button>
-<p id="battleStatus" class="status">Waiting for practice round.</p>
+<h2>Attack Log</h2><div id="log">Room battle ready.</div>
+<div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
 </section>
 
-<section class="panel">
-<h2>Attack Log</h2>
-<div id="log">Simulator ready. Log in to begin.</div>
-</section>
-
-<section class="panel">
+<section id="leaderSettings" class="panel hidden">
 <h2>Leader Settings</h2>
-<label><input type="checkbox" id="deathToggle" style="width:auto"> Enable practice deaths</label>
-<br>
-<label><input type="checkbox" id="shuffleToggle" style="width:auto"> Shuffle player positions</label>
-<br>
-<label><input type="checkbox" id="botToggle" style="width:auto"> Allow practice bots</label>
-<br>
-<button class="blue" onclick="saveSettings()">SAVE SETTINGS</button>
-<p class="small">These controls are currently local practice settings.</p>
-</section>
-
-<section class="panel">
-<h2>Group Chat</h2>
-<button class="blue" onclick="toggleChat()">OPEN / CLOSE CHAT</button>
-<div id="chatPanel" class="hidden">
-<div id="chatBox"></div>
-<input id="chatMessage" placeholder="Practice message">
-<button onclick="sendChat()">SEND</button>
+<label><input type="checkbox" id="deathToggle" checked> Enable practice deaths</label><br>
+<label><input type="checkbox" id="shuffleToggle"> Shuffle player positions</label><br>
+<label><input type="checkbox" id="botToggle"> Allow practice bots</label><br>
+<div class="statgrid">
+<label>Opponent strength<input type="number" id="statStrength" value="500" min="0"></label>
+<label>Opponent defense<input type="number" id="statDefense" value="500" min="0"></label>
+<label>Opponent speed<input type="number" id="statSpeed" value="500" min="0"></label>
+<label>Opponent dexterity<input type="number" id="statDex" value="500" min="0"></label>
 </div>
-<p class="small">Chat is a local demonstration until multiplayer is connected.</p>
+<button class="blue" onclick="saveSettings()">SAVE SETTINGS</button>
+<button class="gray" onclick="addBot()">ADD PRACTICE BOT</button>
+<button class="gray" onclick="shufflePlayers()">SHUFFLE PLAYERS</button>
+<div id="botList" class="small"></div>
+</section>
+</div>
 </section>
 </main>
 
+<button id="chatPopup" class="blue hidden" onclick="toggleChat()">GROUP CHAT</button>
+<div id="chatWindow" class="hidden"><div class="row"><strong>GROUP CHAT</strong><button class="gray" onclick="toggleChat()">CLOSE</button></div><div id="chatBox"></div><div class="row"><input id="chatMessage" placeholder="Type a message"><button class="blue" onclick="sendChat()">SEND</button></div></div>
+
 <script>
-const SUPABASE_URL = "https://nzrrqchdewvycrprbsos.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
-
-let client = null;
-let player = null;
-let hp = 2500;
-let attackCount = 1;
-let flashUsed = false;
-let readyState = false;
-
-function log(message){
-  const box=document.getElementById("log");
-  box.innerHTML += "<div>"+new Date().toLocaleTimeString()+" — "+message+"</div>";
-  box.scrollTop=box.scrollHeight;
-}
+const SUPABASE_URL="https://nzrrqchdewvycrprbsos.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
+let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
+let members=[],bots=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false;
+let game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:false,deaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{}};
+const $=id=>document.getElementById(id);
+function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function addLog(message){const box=$("log");const line=document.createElement("div");line.textContent=new Date().toLocaleTimeString()+" — "+message;box.appendChild(line);box.scrollTop=box.scrollHeight;}
 async function login(){
-
-  const key=document.getElementById("apiKey").value.trim();
-  const message=document.getElementById("loginMessage");
-
-  if(!key){message.textContent="Enter your Torn API key.";return;}
-
-  if(SUPABASE_URL.includes("PASTE_") || SUPABASE_ANON_KEY.includes("PASTE_")){
-    message.textContent="Supabase project URL and publishable key still need to be added.";
-    return;
-  }
-
-  try{
-    message.textContent="Verifying your Torn account...";
-    client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-
-    const response = await fetch(
-  SUPABASE_URL + "/functions/v1/torn-login",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-      "Authorization": "Bearer " + SUPABASE_ANON_KEY
-    },
-    body: JSON.stringify({apiKey:key})
-  }
-);
-
-const data = await response.json();
-
-if (!response.ok) {
-  throw new Error(data.error || "Login failed.");
+ const key=$("apiKey").value.trim(),msg=$("loginMessage");if(!key){msg.textContent="Enter your Torn API key.";return;}
+ try{msg.textContent="Verifying your Torn account...";client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ const response=await fetch(SUPABASE_URL+"/functions/v1/torn-login",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY},body:JSON.stringify({apiKey:key})});
+ const data=await response.json();if(!response.ok||!data.success)throw new Error(data.error||"Login failed.");
+ player=data;$("welcome").textContent=data.playerName;$("playerName").textContent=data.playerName;$("login").classList.add("hidden");$("lobby").classList.remove("hidden");$("apiKey").value="";
+ }catch(e){msg.textContent=e.message||"Unable to verify account.";}
 }
-
-if (!data || !data.success) {
-  throw new Error(data?.error || "Login failed.");
+function logout(){leaveRoom();player=null;$("lobby").classList.add("hidden");$("login").classList.remove("hidden");$("loginMessage").textContent="You have logged out.";}
+function makeCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];return s;}
+async function createRoom(){if(!player)return;leaderId=Number(player.playerId);if(!leaderId)leaderId=Number(player.player_id);await connectRoom(makeCode(),true);}
+async function joinRoom(){const code=$("roomInput").value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){$("roomMessage").textContent="Enter a valid 6-character room code.";return;}await connectRoom(code,false);}
+async function connectRoom(code,creator){
+ if(channel)await leaveRoom();roomCode=code;leaderId=creator?Number(player.playerId||player.player_id):0;readyFlag=false;isLeader=creator;
+ $("roomMessage").textContent="Connecting to room...";
+ channel=client.channel("sinister-sicks-room-"+roomCode,{config:{broadcast:{self:false},presence:{key:String(player.playerId||player.player_id)}}});
+ channel.on("presence",{event:"sync"},()=>{syncMembers();});
+ channel.on("broadcast",{event:"chat"},({payload})=>appendChat(payload.name,payload.message));
+ channel.on("broadcast",{event:"ready-check"},({payload})=>{readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;readyFlag=false;trackPresence();renderRoom();});
+ channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m)m.ready=!!payload.ready;renderMembers();});
+ channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();}});
+ channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
+ channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;game.started=true;renderGame();$("battle").classList.remove("hidden");addLog("Practice round started by the leader.");});
+ channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;renderGame();addLog("Leader reset the practice round.");});
+ channel.on("broadcast",{event:"settings"},({payload})=>{game.deaths=payload.deaths;game.opponent=payload.opponent;bots=payload.bots||[];renderGame();});
+ channel.on("broadcast",{event:"bot-update"},({payload})=>{bots=payload.bots||[];renderMembers();renderBots();});
+ channel.on("broadcast",{event:"state-request"},()=>{if(isLeader)sendGameState();});
+ channel.subscribe(async status=>{
+  if(status==="SUBSCRIBED"){
+   await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:creator,ready:false,online:true});
+   $("room").classList.remove("hidden");$("lobby").classList.add("hidden");$("roomCodeLabel").textContent=roomCode;
+   $("chatPopup").classList.remove("hidden");$("roomMessage").textContent="";
+   if(creator){leaderId=Number(player.playerId||player.player_id);isLeader=true;renderRoom();}
+   else{await channel.send({type:"broadcast",event:"state-request",payload:{}});setTimeout(()=>{syncMembers();if(!leaderId)$("readyStatus").textContent="Waiting for the room leader to appear.";},1200);}
+   renderRoom();
+  }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){$("roomMessage").textContent="Could not connect to the live room. Check your connection and try again.";}
+ });
 }
-
-    player=data;
-    document.getElementById("playerName").textContent=data.playerName;
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("game").classList.remove("hidden");
-    document.getElementById("apiKey").value="";
-    log(data.playerName+" verified as a SINISTER SIX member.");
-  }catch(error){
-    message.textContent=error.message || "Unable to verify account.";
-  }
+function syncMembers(){
+ if(!channel)return;const state=channel.presenceState();const flat=Object.values(state).flat();const unique=new Map();
+ flat.forEach(m=>{if(m&&m.playerId)unique.set(String(m.playerId),{...m,ready:!!m.ready});});
+ members=Array.from(unique.values());const lead=members.find(m=>m.isLeader);if(lead)leaderId=Number(lead.playerId);
+ isLeader=Number(player.playerId||player.player_id)===Number(leaderId);renderRoom();
 }
-
-function attack(weapon,shots){
-  if(!player)return;
-  if(hp<=0){log("Target defeated. Reset the practice battle.");return;}
-  const damage=weapon==="Rifle"?150:weapon==="Pistol"?45:100;
-  const total=Math.min(hp,damage);
-  hp-=total;
-  attackCount++;
-  updateHealth();
-  log(player.playerName+" used "+weapon+" ("+shots+" practice shot"+(shots===1?"":"s")+") for "+total+" damage.");
-  if(hp===0)log("Training target defeated!");
+async function trackPresence(){if(channel)await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:isLeader,ready:readyFlag,online:true});}
+function renderRoom(){
+ $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
+ $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
+ $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started);
+ renderMembers();renderBots();updateReadyStatus();
 }
-
-function flashbang(){
-  if(flashUsed){log("Flashbang already used this round.");return;}
-  flashUsed=true;
-  document.getElementById("tempButton").disabled=true;
-  log(player.playerName+" threw a flashbang. Opponent dexterity practice effect: reduced by 50%.");
+function renderMembers(){
+ const list=$("memberList");list.innerHTML="";
+ const ordered=members.slice();if($("shuffleToggle")&&$("shuffleToggle").checked)ordered.sort(()=>Math.random()-.5);
+ ordered.forEach(m=>{const div=document.createElement("div");div.className="member";const left=document.createElement("span");left.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const right=document.createElement("span");right.className=m.ready?"ready":"notready";right.textContent=m.ready?"READY":"NOT READY";div.append(left,right);list.appendChild(div);});
+ bots.forEach(b=>{const div=document.createElement("div");div.className="member";div.innerHTML="<span>"+safeText(b.name)+" (BOT)</span><span class='status'>PRACTICE BOT</span>";list.appendChild(div);});
+ if(!members.length)list.textContent="Waiting for faction members...";
 }
-
-function updateHealth(){
-  document.getElementById("hpText").textContent=hp+" / 2500 HP";
-  document.getElementById("hpBar").style.width=(hp/2500*100)+"%";
-  document.getElementById("attackNumber").textContent=attackCount;
+function renderBots(){$("botList").textContent=bots.length?"Bots: "+bots.map(b=>b.name).join(", "):"No practice bots added.";}
+function allReady(){return members.length>0&&members.every(m=>m.ready);}
+function updateReadyStatus(){
+ if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can start.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready).length+"/"+members.length+" ready.";if(isLeader)$("startButton").disabled=!allReady()||left<=0;}
+ else{$("readyStatus").textContent="Waiting for the leader to call ready.";if(isLeader)$("startButton").disabled=true;}
 }
-
-function resetBattle(){
-  hp=2500;attackCount=1;flashUsed=false;
-  document.getElementById("tempButton").disabled=false;
-  updateHealth();
-  log("Practice battle reset.");
+async function beginReadyCheck(){
+ if(!isLeader||!channel)return;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=false;
+ members.forEach(m=>m.ready=false);await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
+ renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{updateReadyStatus();if(allReady()){readyCheckActive=false;clearInterval(readyTimer);await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0}});updateReadyStatus();}else if(Date.now()>=readyDeadline){readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0}});$("readyStatus").textContent="Ready check expired. Leader must call ready check again.";updateReadyStatus();}},250);
 }
-
-function ready(){
-  readyState=true;
-  document.getElementById("battleStatus").textContent="You are READY. Waiting for the practice leader.";
-  log(player.playerName+" is ready.");
+async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(player.playerId||player.player_id),ready:value}});syncMembers();updateReadyStatus();}
+async function startBattle(){
+ if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
+ game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[]};
+ members.forEach(m=>game.playerHp[String(m.playerId)]=1000);
+ await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Leader started the practice round.");
 }
-
-function startBattle(){
-  if(!readyState){
-    document.getElementById("battleStatus").textContent="Press READY before starting.";
-    return;
-  }
-  document.getElementById("battleStatus").textContent="Local practice round started.";
-  log("Practice round started.");
+function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
+async function saveSettings(){if(!isLeader)return;game.deaths=$("deathToggle").checked;game.opponent=readStats();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader updated practice settings.");}
+async function addBot(){if(!isLeader||!$("botToggle").checked){alert("Turn on Allow practice bots first.");return;}bots.push({id:"bot-"+Date.now(),name:"Practice Bot "+(bots.length+1)});await channel.send({type:"broadcast",event:"bot-update",payload:{bots:bots}});renderBots();renderMembers();}
+async function shufflePlayers(){if(!isLeader)return;members.sort(()=>Math.random()-.5);renderMembers();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader shuffled the player order.");}
+function attack(weapon){
+ if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
+ const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
+ const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
+ const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),name:player.playerName};
+ applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
-
-function watch(){
-  document.getElementById("battleStatus").textContent="Watching practice mode.";
-  log(player.playerName+" is watching.");
+function flashbang(){if(!game.started||game.flashUsed||spectating)return;game.flashUsed=true;const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(player.playerId||player.player_id),name:player.playerName};applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});}
+function applyAttack(p,local){
+ if(!p||!game.started)return;
+ if(p.weapon==="Flashbang"){game.flashUsed=true;$("tempButton").disabled=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
+ else{game.hp=Math.max(0,game.hp-(Number(p.damage)||0));game.attackNumber++;if(game.deaths){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");}
+ renderGame();if(game.hp===0){game.started=false;addLog("Training target defeated!");}
 }
-
-function saveSettings(){
-  log("Local practice settings saved.");
+function renderGame(){
+ $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";$("attackNumber").textContent=game.attackNumber;
+ const me=String(player.playerId||player.player_id);$("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
+ $("battleNotice").textContent=spectating?"You are watching this round.":(game.deaths&&game.dead&&game.dead.includes(me)?"You are knocked out. Rejoin or watch.":"");
+ $("tempButton").disabled=!!game.flashUsed;$("deathActions").classList.toggle("hidden",!(game.deaths&&game.dead&&game.dead.includes(me)));
 }
-
-function toggleChat(){
-  document.getElementById("chatPanel").classList.toggle("hidden");
-}
-
-function sendChat(){
-  const input=document.getElementById("chatMessage");
-  if(!input.value.trim())return;
-  const line=document.createElement("div");
-  line.textContent=player.playerName+": "+input.value;
-  document.getElementById("chatBox").appendChild(line);
-  input.value="";
-}
+async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
+async function rejoinBattle(){const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>x!==me);spectating=false;$("deathActions").classList.add("hidden");renderGame();if(isLeader)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});else await channel.send({type:"broadcast",event:"state-request",payload:{}});addLog(player.playerName+" rejoined the practice round.");}
+function watchBattle(){spectating=true;$("deathActions").classList.add("hidden");renderGame();addLog(player.playerName+" is watching the practice round.");}
+function appendChat(name,message){const line=document.createElement("div");line.textContent=name+": "+message;$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;}
+async function sendChat(){const input=$("chatMessage"),message=input.value.trim();if(!message||!channel)return;input.value="";appendChat(player.playerName,message);await channel.send({type:"broadcast",event:"chat",payload:{name:player.playerName,message:message}});}
+function toggleChat(){$("chatWindow").classList.toggle("hidden");}
+async function sendGameState(){if(channel)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});}
+async function leaveRoom(){clearInterval(readyTimer);if(channel){try{await channel.untrack();await client.removeChannel(channel);}catch(e){}channel=null;}roomCode="";members=[];bots=[];game.started=false;$("room").classList.add("hidden");$("lobby").classList.remove("hidden");$("chatPopup").classList.add("hidden");$("chatWindow").classList.add("hidden");}
 </script>
 </body>
 </html>
