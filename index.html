@@ -313,7 +313,7 @@ function attack(weapon){
  if(game.memberDeaths&&(game.playerHp[me]||1000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
- const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
+ const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function flashbang(){
@@ -331,10 +331,18 @@ function applyAttack(p,local){
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const activeOrder=activeTurnOrder();
  const actorIndex=activeOrder.indexOf(actor);
- const expectedPosition=activeOrder.length>1?activeOrder.length-1:(activeOrder.length?1:0);
- const expectedActor=expectedPosition?String(activeOrder[expectedPosition-1]||""):"";
+ // Expected slot is always one less than the number of living members and bots.
+ // The leader snapshots it into the broadcast so every device uses the same count.
+ const liveExpectedPosition=Math.max(0,activeOrder.length-1);
+ const liveExpectedActor=liveExpectedPosition?String(activeOrder[liveExpectedPosition-1]||""):"";
+ const expectedPosition=Number.isFinite(Number(p.expectedPosition))?Number(p.expectedPosition):liveExpectedPosition;
+ const expectedActor=p.expectedTurnId?String(p.expectedTurnId):liveExpectedActor;
+ const actualPosition=Number.isFinite(Number(p.actualPosition))?Number(p.actualPosition):(actorIndex+1);
  const outOfTurn=!!(expectedActor&&actor!==expectedActor);
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&actorIndex<expectedPosition-1?"EARLY":"LATE"):"",actualPosition:actorIndex+1,expectedPosition:expectedPosition,expectedTurnId:expectedActor});
+ p.expectedPosition=expectedPosition;
+ p.expectedTurnId=expectedActor;
+ p.actualPosition=actualPosition;
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expectedActor});
  game.lastAttackAt[actor]=at;
  if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — current position #"+(actorIndex+1)+"; expected position #"+expectedPosition+".":""))}
  else{
@@ -373,7 +381,7 @@ function runBotTurns(){
  const damage=Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44)));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=Math.max(1,Math.round((strength/18)*(0.70+Math.random()*0.48)));
- const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
+ const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,attackAt:0};
  const delay=700+Math.floor(Math.random()*1201);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
