@@ -106,7 +106,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="battlegrid">
 <section class="panel wide">
 <div id="battleActionArea">
-<div class="row"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 1000 / 1000</div></div><button class="gray" onclick="resetBattle()">RESET</button></div>
+<div class="row"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 5000 / 5000</div></div><button class="gray" onclick="resetBattle()">RESET</button></div>
 <h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
@@ -297,7 +297,7 @@ async function startBattle(){
  $("attackLogPanel").classList.remove("hidden");
  botTurnToken++;
  game={hp:2500,maxHp:2500,attackNumber:1,firstCorrectAttackDone:false,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set(readyOrder.length?readyOrder:buildAttackOrder())],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{},memberTurnDone:{}};
- members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();
+ members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();
  game.memberTurnDone={};
  const initialMaxBlue=Math.max(0,activeTurnOrder().length-1);
  const firstBot=bots.find(bot=>!game.dead.includes(String(bot.id)));
@@ -415,14 +415,14 @@ function applyAttack(p,local){
  const outOfTurn=actor!==expectedActor||wrongBlue;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});game.outOfTurnCounts=game.outOfTurnCounts||{};if(outOfTurn)game.outOfTurnCounts[actor]=(Number(game.outOfTurnCounts[actor])||0)+1;
  game.lastAttackAt[actor]=at;
  if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — current position #"+(actorIndex+1)+"; expected position #"+expectedPosition+".":""))}
  else{
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
   const actorHpId=String(p.actorId||p.playerId||"");
   const takesDamage=p.isBot?!!game.botDeaths:!!game.memberDeaths;
-  if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
+  if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):5000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage."+(outOfTurn?" — OUT OF TURN (actual #"+actualPosition+", expected #"+expectedPosition+", blue "+blue+"/"+liveWindow+").":""));
  }
  advanceAttackTurn(!outOfTurn,actor);renderGame();
@@ -468,7 +468,7 @@ function runBotTurns(){
 function renderGame(){
  $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";updateTurnPosition();
  const me=String(player.playerId||player.player_id);const knockedOut=!!(game.memberDeaths&&game.dead&&game.dead.map(String).includes(me));
- $("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
+ $("myHealth").textContent="Your HP: "+(game.playerHp[me]??5000)+" / 5000";
  $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
  $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":"");
  game.tempUsedBy=game.tempUsedBy||{};$("tempButton").disabled=spectating||knockedOut||!!game.tempUsedBy[me];
@@ -481,17 +481,17 @@ $("battle").classList.remove("hidden");
  const rows=game.attacks||[];const participants=[...(members||[]).map(m=>({id:String(m.playerId),name:m.name||m.playerName||String(m.playerId)})),...(bots||[]).map(b=>({id:String(b.id),name:b.name||"Practice Bot"}))];
  const body=$("reportRows");body.innerHTML="";
  participants.forEach(person=>{
-  const mine=rows.filter(a=>String(a.actorId)===person.id);const out=mine.filter(a=>a.outOfTurn);
+  const mine=rows.filter(a=>String(a.actorId)===person.id);const out=mine.filter(a=>a.outOfTurn);const outCount=Math.max(out.length,Number(game.outOfTurnCounts?.[person.id])||0);
   const intervals=mine.slice(1).map(a=>Number(a.elapsed)||0);const avg=intervals.length?intervals.reduce((sum,n)=>sum+n,0)/intervals.length:0;
-  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+(out.length?'<span class="report-flag">'+out.length+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(intervals.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
+  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+(outCount?'<span class="report-flag">'+outCount+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(intervals.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
  });
  $("attackLogPanel").classList.add("hidden");
  $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
 function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");if(!game.started)$("battle").classList.add("hidden");}
-async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};const resetMaxBlue=Math.max(0,activeTurnOrder().length-1);const resetBot=bots.find(bot=>!game.dead.includes(String(bot.id)));game.attackNumber=resetMaxBlue>1&&resetBot?1:resetMaxBlue;game.currentTurnId=resetMaxBlue>1&&resetBot?String(resetBot.id):String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};const resetMaxBlue=Math.max(0,activeTurnOrder().length-1);const resetBot=bots.find(bot=>!game.dead.includes(String(bot.id)));game.attackNumber=resetMaxBlue>1&&resetBot?1:resetMaxBlue;game.currentTurnId=resetMaxBlue>1&&resetBot?String(resetBot.id):String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
- const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
+ const me=String(player.playerId||player.player_id);game.playerHp[me]=5000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
  if(channel){await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});await channel.send({type:"broadcast",event:"system-log",payload:{message:player.playerName+" rejoined the practice round."}});}
 }
