@@ -267,10 +267,10 @@ async function beginReadyCheck(){
 async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});syncMembers();updateReadyStatus();renderReadyPanel();}
 async function startBattle(){
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
- game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...(readyOrder.length?readyOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
+ game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
  members.forEach(m=>game.playerHp[String(m.playerId)]=1000);
  game.currentTurnId=game.turnOrder[0]||"";
- readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");
+ readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");runBotTurns();
 }
 function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
 async function saveSettings(){if(!isLeader)return;game.deaths=$("deathToggle").checked;game.opponent=readStats();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader updated practice settings.");}
@@ -303,12 +303,14 @@ function attack(weapon){
 function flashbang(){
  if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
  if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
+ game.tempUsedBy=game.tempUsedBy||{};if(game.tempUsedBy[me])return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function applyAttack(p,local){
  if(!p||!game.started)return;
- const actor=String(p.actorId||p.playerId||"");const expected=String(p.expectedTurnId||game.currentTurnId||"");const at=Number(p.attackAt)||Date.now();
+ const actor=String(p.actorId||p.playerId||"");
+ game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;const expected=String(p.expectedTurnId||game.currentTurnId||"");const at=Number(p.attackAt)||Date.now();
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const order=game.turnOrder||[];const actorIndex=order.indexOf(actor);const expectedIndex=order.indexOf(expected);
@@ -339,7 +341,7 @@ function renderGame(){
  $("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
  $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
  $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":"");
- $("tempButton").disabled=spectating||knockedOut;
+ game.tempUsedBy=game.tempUsedBy||{};$("tempButton").disabled=spectating||knockedOut||!!game.tempUsedBy[me];
  $("deathActions").classList.toggle("hidden",!knockedOut||spectating);
 }
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
@@ -357,7 +359,7 @@ function showBattleReport(){
  $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' threw '+safeText(a.weapon)+' from ready-menu position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId)+') to attack. This shows what they threw and where they were in the ready order.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
  $("battleReport").classList.remove("hidden");
 }
-async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...(readyOrder.length?readyOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
+async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
