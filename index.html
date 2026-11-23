@@ -415,7 +415,7 @@ function runBotTurns(){
  const token=++botTurnToken;
  const scale=opponentBotScale();
  const hp=Math.max(1,Number(game.playerHp[actor]??bot.maxHp??460));
- const damage=Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44)));
+ const damage=Math.min(200,Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44))));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=100;
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
