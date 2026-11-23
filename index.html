@@ -318,10 +318,6 @@ function updateTurnPosition(){
   $("attackNumber").textContent=game.attackNumber||"—";
   $("participantCount").textContent=active.length+" LEFT";
 }
- game.attackNumber=Math.max(0,active.length-1);
- $("attackNumber").textContent=game.attackNumber||"—";
- $("participantCount").textContent=active.length+" LEFT";
-}
 function advanceAttackTurn(){
   // Count this attack; updateTurnPosition clamps it after any elimination.
   game.attackNumber=(Number(game.attackNumber)||1)+1;
