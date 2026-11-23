@@ -296,13 +296,13 @@ async function startBattle(){
  if(!isLeader||!readyCheckActive||!allReady())return;
  $("attackLogPanel").classList.remove("hidden");
  botTurnToken++;
- game={hp:2500,maxHp:2500,attackNumber:1,firstCorrectAttackDone:false,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set(readyOrder.length?readyOrder:buildAttackOrder())],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{},memberTurnDone:{}};
+ game={hp:2500,maxHp:2500,attackNumber:1,firstCorrectAttackDone:false,flashUsed:false,tempUsedBy:{},openingTempPending:true,openingTempUsed:false,openingTempPlayerId:"",started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set(readyOrder.length?readyOrder:buildAttackOrder())],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{},memberTurnDone:{}};
  members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();
  game.memberTurnDone={};
  const initialMaxBlue=Math.max(0,activeTurnOrder().length-1);
- const firstBot=bots.find(bot=>!game.dead.includes(String(bot.id)));
- game.attackNumber=initialMaxBlue>1&&firstBot?1:initialMaxBlue;
- game.currentTurnId=initialMaxBlue>1&&firstBot?String(firstBot.id):String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ const firstLiveMember=String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ game.openingTempPlayerId=firstLiveMember;game.openingTempPending=!!firstLiveMember;
+ game.attackNumber=initialMaxBlue;game.currentTurnId=firstLiveMember;
  readyCheckActive=false;readyDeadline=0;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");$("battleActionArea").classList.remove("hidden");renderGame();addLog("Practice round started.");setTimeout(()=>$("battle").scrollIntoView({behavior:"smooth",block:"start"}),80);runBotTurns();
 }
 function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
@@ -377,7 +377,7 @@ function advanceAttackTurn(wasCorrect,attackerId){
  updateTurnPosition();
 }
 function attack(weapon){
- if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
+ if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);if(game.openingTempPending){$("battleNotice").textContent="Player 1 must throw the one-time temp before attacks begin.";return;}
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Wait for your live-player turn: blue must be one below the yellow total.";return;}
  if(game.memberDeaths&&(game.playerHp[me]||5000)<=0)return;
@@ -388,17 +388,17 @@ function attack(weapon){
 }
 function flashbang(){
  if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
- const maxBlue=Math.max(0,activeTurnOrder().length-1);
- if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Wait for your live-player turn: blue must be one below the yellow total.";return;}
+ if(!game.openingTempPending||game.openingTempUsed||me!==String(game.openingTempPlayerId||"")){$("battleNotice").textContent="The one-time opening temp is reserved for live player #1.";return;}
  if(game.memberDeaths&&(game.playerHp[me]||5000)<=0)return;
- game.tempUsedBy=game.tempUsedBy||{};if(game.tempUsedBy[me])return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function applyAttack(p,local){
  if(!p||!game.started)return;
  const actor=String(p.actorId||p.playerId||"");
- game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;// The leader room state is authoritative for remote attacks; do not trust a stale sender turn pointer.
+ if(game.openingTempPending&&p.weapon!=="Flashbang")return;
+ if(p.weapon==="Flashbang"&&(!game.openingTempPending||game.openingTempUsed||actor!==String(game.openingTempPlayerId||"")))return;
+ game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang"){game.tempUsedBy[actor]=true;game.openingTempUsed=true;game.openingTempPending=false;}// The leader room state is authoritative for remote attacks; do not trust a stale sender turn pointer.
  const expected=String((isLeader&&!local)?(game.currentTurnId||""):(p.expectedTurnId||game.currentTurnId||""));const at=Number(p.attackAt)||Date.now();
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
@@ -425,7 +425,7 @@ function applyAttack(p,local){
   if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):5000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage."+(outOfTurn?" — OUT OF TURN (actual #"+actualPosition+", expected #"+expectedPosition+", blue "+blue+"/"+liveWindow+").":""));
  }
- advanceAttackTurn(!outOfTurn,actor);renderGame();
+ const openingTemp=p.weapon==="Flashbang"&&String(game.openingTempPlayerId||"")===actor;if(!openingTemp)advanceAttackTurn(!outOfTurn,actor);renderGame();
  if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(activeTurnOrder().length===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("All players and practice bots have been eliminated.");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(isLeader)runBotTurns();
@@ -445,7 +445,7 @@ function prepareBotHealth(){
  });
 }
 function runBotTurns(){
- if(!isLeader||!game.started)return;
+ if(!isLeader||!game.started||game.openingTempPending)return;
  const actor=String(game.currentTurnId||"");
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  // Bots are forbidden from acting at the live-player window (blue == yellow - 1).
@@ -470,8 +470,8 @@ function renderGame(){
  const me=String(player.playerId||player.player_id);const knockedOut=!!(game.memberDeaths&&game.dead&&game.dead.map(String).includes(me));
  $("myHealth").textContent="Your HP: "+(game.playerHp[me]??5000)+" / 5000";
  $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
- $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":"");
- game.tempUsedBy=game.tempUsedBy||{};$("tempButton").disabled=spectating||knockedOut||!!game.tempUsedBy[me];
+ $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":(game.openingTempPending?(me===String(game.openingTempPlayerId||"")?"Throw your one-time temp to start the attack.":"Waiting for live player #1 to throw the opening temp."):""));
+ game.tempUsedBy=game.tempUsedBy||{};$("tempButton").disabled=spectating||knockedOut||!game.openingTempPending||game.openingTempUsed||me!==String(game.openingTempPlayerId||"");
  $("deathActions").classList.toggle("hidden",!knockedOut||spectating);
 }
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
@@ -489,7 +489,7 @@ $("battle").classList.remove("hidden");
  $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
 function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");if(!game.started)$("battle").classList.add("hidden");}
-async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};const resetMaxBlue=Math.max(0,activeTurnOrder().length-1);const resetBot=bots.find(bot=>!game.dead.includes(String(bot.id)));game.attackNumber=resetMaxBlue>1&&resetBot?1:resetMaxBlue;game.currentTurnId=resetMaxBlue>1&&resetBot?String(resetBot.id):String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.openingTempPending=true;game.openingTempUsed=false;game.openingTempPlayerId="";game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};const resetMaxBlue=Math.max(0,activeTurnOrder().length-1);const resetFirstLiveMember=String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");game.openingTempPlayerId=resetFirstLiveMember;game.openingTempPending=!!resetFirstLiveMember;game.attackNumber=resetMaxBlue;game.currentTurnId=resetFirstLiveMember;game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=5000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
