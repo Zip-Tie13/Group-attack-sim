@@ -157,7 +157,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 const SUPABASE_URL="https://nzrrqchdewvycrprbsos.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
 let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
-let members=[],bots=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false;
+let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false;
 let game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:false,deaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{}};
 const $=id=>document.getElementById(id);
 function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -181,7 +181,7 @@ async function connectRoom(code,creator){
  channel.on("presence",{event:"sync"},()=>{syncMembers();});
  channel.on("broadcast",{event:"chat"},({payload})=>appendChat(payload.name,payload.message));
  channel.on("broadcast",{event:"ready-check"},({payload})=>{
- readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;
+ readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;if(Array.isArray(payload.readyOrder))readyOrder=payload.readyOrder.map(String);
  if(payload.expired){const afkIds=(payload.afkIds||[]).map(String);members.forEach(m=>{m.afk=afkIds.includes(String(m.playerId));});}
  if(readyCheckActive){readyFlag=false;$("battle").classList.remove("hidden");$("battleActionArea").classList.add("hidden");$("readyPanel").classList.add("ready-overlay");}
  else{$("readyPanel").classList.remove("ready-overlay");$("battleActionArea").classList.remove("hidden");if(!game.started)$("battle").classList.add("hidden");}
@@ -240,7 +240,7 @@ function renderReadyPanel(){
  panel.classList.toggle("hidden",!readyCheckActive&&!members.some(m=>m.afk)&&!game.started);
  if(readyCheckActive)panel.classList.add("ready-overlay");else panel.classList.remove("ready-overlay");
  const list=$("readyRoster");list.innerHTML="";
- members.forEach(m=>{const row=document.createElement("div");row.className="member";const name=document.createElement("span");name.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const status=document.createElement("span");status.className=m.afk?"afk":(m.ready?"ready":"notready");status.textContent=m.afk?"AFK":(m.ready?"READY":"WAITING");row.append(name,status);list.appendChild(row);});
+ const order=readyOrder.length?readyOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];order.forEach((id,index)=>{const m=members.find(x=>String(x.playerId)===id);const bot=bots.find(x=>String(x.id)===id);if(!m&&!bot)return;const row=document.createElement("div");row.className="member";const name=document.createElement("span");name.textContent="#"+(index+1)+" — "+(m?(m.name||"Faction member")+(m.isLeader?" (LEADER)":""):(bot.name||"Practice Bot")+" (BOT)");const status=document.createElement("span");status.className=m?(m.afk?"afk":(m.ready?"ready":"notready")):"status";status.textContent=m?(m.afk?"AFK":(m.ready?"READY":"WAITING")):"BOT";row.append(name,status);list.appendChild(row);});
  const left=readyCheckActive?Math.max(0,Math.ceil((readyDeadline-Date.now())/1000)):0;
  $("readyCountdown").textContent=readyCheckActive?left+" SECONDS":(members.some(m=>m.afk)?"CHECK EXPIRED":"READY CHECK");
  $("readyPanelButton").classList.toggle("hidden",!readyCheckActive||readyFlag||isLeader);
@@ -250,7 +250,7 @@ async function beginReadyCheck(){
  if(!isLeader||!channel)return;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=true;
  members.forEach(m=>{m.ready=Number(m.playerId)===Number(leaderId);m.afk=false;});
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
- await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
+ readyOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline,readyOrder:readyOrder}});
  renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
   if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0,allReady:true}});await startBattle();}
   else if(Date.now()>=readyDeadline){
@@ -267,7 +267,7 @@ async function beginReadyCheck(){
 async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});syncMembers();updateReadyStatus();renderReadyPanel();}
 async function startBattle(){
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
- game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[],turnOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
+ game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...(readyOrder.length?readyOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
  members.forEach(m=>game.playerHp[String(m.playerId)]=1000);
  game.currentTurnId=game.turnOrder[0]||"";
  readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");
@@ -301,7 +301,7 @@ function attack(weapon){
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function flashbang(){
- if(!game.started||game.flashUsed||spectating)return;const me=String(player.playerId||player.player_id);
+ if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
  if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
@@ -315,7 +315,7 @@ function applyAttack(p,local){
  const outOfTurn=!!(expected&&actor!==expected);
  game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&expectedIndex>=0&&actorIndex<expectedIndex?"EARLY":"LATE"):""});
  game.lastAttackAt[actor]=at;
- if(p.weapon==="Flashbang"){game.flashUsed=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
+ if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);const order=game.turnOrder||[];const expectedPosition=order.indexOf(expected)+1;const actualPosition=order.indexOf(actor)+1;addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — ready-menu position #"+actualPosition+"; expected position #"+expectedPosition+".":""));}
  else{
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
   if(game.deaths&&!p.isBot){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);}}
@@ -339,7 +339,7 @@ function renderGame(){
  $("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
  $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
  $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":"");
- $("tempButton").disabled=!!game.flashUsed||spectating||knockedOut;
+ $("tempButton").disabled=spectating||knockedOut;
  $("deathActions").classList.toggle("hidden",!knockedOut||spectating);
 }
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
@@ -357,7 +357,7 @@ function showBattleReport(){
  $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' attacked with '+safeText(a.weapon)+' while position '+safeText(a.expectedTurnId)+' was displayed</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
  $("battleReport").classList.remove("hidden");
 }
-async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};game.turnOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
+async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...(readyOrder.length?readyOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id)))];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
