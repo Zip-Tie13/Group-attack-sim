@@ -311,24 +311,21 @@ function activeTurnOrder(){
 }
 function updateTurnPosition(){
   const active=activeTurnOrder();
-  // Blue starts at 1, advances once per attack, and is capped at one below yellow.
+  // Blue is the position of the next expected attacker, starting at 1.
+  // It can never exceed one less than the living participant count.
   const limit=Math.max(0,active.length-1);
   const current=Number(game.attackNumber);
-  game.attackNumber=Math.min(Math.max(1,Number.isFinite(current)?current:1),limit);
+  game.attackNumber=limit===0?0:Math.min(Math.max(1,Number.isFinite(current)?current:1),limit);
+  game.currentTurnId=active[game.attackNumber-1]||"";
   $("attackNumber").textContent=game.attackNumber||"—";
   $("participantCount").textContent=active.length+" LEFT";
 }
-function advanceAttackTurn(){
-  // Count this attack; updateTurnPosition clamps it after any elimination.
-  game.attackNumber=(Number(game.attackNumber)||1)+1;
- const all=game.turnOrder||[],dead=new Set((game.dead||[]).map(String));
- if(!all.length){game.currentTurnId="";updateTurnPosition();return;}
- const current=all.indexOf(String(game.currentTurnId));
- for(let step=1;step<=all.length;step++){
-  const candidate=String(all[(Math.max(-1,current)+step)%all.length]);
-  if(!dead.has(candidate)){game.currentTurnId=candidate;updateTurnPosition();return;}
- }
- game.currentTurnId="";updateTurnPosition();
+function advanceAttackTurn(wasCorrect){
+  // Only the expected attacker advances the blue position.
+  const active=activeTurnOrder();
+  const limit=Math.max(0,active.length-1);
+  if(wasCorrect&&game.attackNumber<limit)game.attackNumber++;
+  updateTurnPosition();
 }
 function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
@@ -353,13 +350,11 @@ function applyAttack(p,local){
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const activeOrder=activeTurnOrder();
  const actorIndex=activeOrder.indexOf(actor);
- // Expected slot is always one less than the number of living members and bots.
- // The leader snapshots it into the broadcast so every device uses the same count.
- const expectedPosition=Math.max(0,activeOrder.length-1);
+ // The expected attacker is the current blue position in the living roster.
+ const expectedPosition=Number(game.attackNumber)||1;
+ const expectedActor=activeOrder[expectedPosition-1]||"";
  const actualPosition=actorIndex+1;
- // Compare the attacker's current living-roster position with the required
- // position (one less than the number of living members and bots).
- const outOfTurn=actualPosition!==expectedPosition;
+ const outOfTurn=actor!==expectedActor;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
  game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});
@@ -372,7 +367,7 @@ function applyAttack(p,local){
   if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
  }
- advanceAttackTurn();renderGame();
+ advanceAttackTurn(!outOfTurn);renderGame();
  if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(isLeader)runBotTurns();
 }
