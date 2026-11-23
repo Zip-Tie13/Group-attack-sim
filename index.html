@@ -236,7 +236,7 @@ async function trackPresence(){if(channel)await channel.track({playerId:Number(p
 function renderRoom(){
  $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
  $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
- $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started);
+ $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started&&$("battleReport").classList.contains("hidden"));
  renderMembers();renderBots();updateReadyStatus();renderReadyPanel();
 }
 function renderMembers(){
@@ -310,14 +310,21 @@ function activeTurnOrder(){
  return (game.turnOrder||[]).filter(id=>!dead.has(String(id)));
 }
 function updateTurnPosition(){
- const active=activeTurnOrder();
- // The correct attack number is always one less than the living participant count.
- // Recalculate after every attack so eliminations immediately lower the required number.
+  const active=activeTurnOrder();
+  // Blue starts at 1, advances once per attack, and is capped at one below yellow.
+  const limit=Math.max(0,active.length-1);
+  const current=Number(game.attackNumber);
+  game.attackNumber=Math.min(Math.max(1,Number.isFinite(current)?current:1),limit);
+  $("attackNumber").textContent=game.attackNumber||"—";
+  $("participantCount").textContent=active.length+" LEFT";
+}
  game.attackNumber=Math.max(0,active.length-1);
  $("attackNumber").textContent=game.attackNumber||"—";
  $("participantCount").textContent=active.length+" LEFT";
 }
 function advanceAttackTurn(){
+  // Count this attack; updateTurnPosition clamps it after any elimination.
+  game.attackNumber=(Number(game.attackNumber)||1)+1;
  const all=game.turnOrder||[],dead=new Set((game.dead||[]).map(String));
  if(!all.length){game.currentTurnId="";updateTurnPosition();return;}
  const current=all.indexOf(String(game.currentTurnId));
@@ -418,6 +425,8 @@ function renderGame(){
 }
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
 function showBattleReport(){
+  // Keep the parent battle section visible while the results overlay is displayed.
+$("battle").classList.remove("hidden");
  const rows=game.attacks||[];const participants=[...(members||[]).map(m=>({id:String(m.playerId),name:m.name||m.playerName||String(m.playerId)})),...(bots||[]).map(b=>({id:String(b.id),name:b.name||"Practice Bot"}))];
  const body=$("reportRows");body.innerHTML="";
  participants.forEach(person=>{
