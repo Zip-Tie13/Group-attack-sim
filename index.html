@@ -329,10 +329,13 @@ function updateTurnPosition(){
   $("attackNumber").textContent=game.attackNumber||"—";
   $("participantCount").textContent=active.length+" LEFT";
 }
-function advanceAttackTurn(wasCorrect){
+function advanceAttackTurn(wasCorrect,attackerId){
   const all=game.turnOrder||[];
   const dead=new Set((game.dead||[]).map(String));
-  const currentIndex=all.indexOf(String(game.currentTurnId||""));
+  // Continue from the participant who actually attacked, not the previously
+  // expected turn. This lets an out-of-turn attack hand control to the next
+  // living participant instead of leaving the bot chain waiting for another tap.
+  const currentIndex=all.indexOf(String(attackerId||game.currentTurnId||""));
   for(let step=1;step<=all.length;step++){
     const candidate=String(all[(Math.max(-1,currentIndex)+step)%all.length]);
     if(!dead.has(candidate)){game.currentTurnId=candidate;break;}
@@ -385,7 +388,7 @@ function applyAttack(p,local){
   if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
  }
- advanceAttackTurn(!outOfTurn);renderGame();
+ advanceAttackTurn(!outOfTurn,actor);renderGame();
  if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(activeTurnOrder().length===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("All players and practice bots have been eliminated.");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(isLeader)runBotTurns();
