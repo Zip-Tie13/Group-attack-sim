@@ -401,8 +401,8 @@ function opponentBotScale(){
 function prepareBotHealth(){
  const scale=opponentBotScale();
  bots.forEach((b,index)=>{
-  const variation=0.78+Math.random()*0.48;
-  const hp=Math.max(300,Math.round(700*scale*(0.90+Math.random()*0.35)));
+  // Give each bot a different durability so they are eliminated at different times.
+  const hp=350+Math.floor(Math.random()*301);
   b.maxHp=hp;
   game.playerHp[String(b.id)]=hp;
  });
@@ -417,7 +417,8 @@ function runBotTurns(){
  const hp=Math.max(1,Number(game.playerHp[actor]??bot.maxHp??460));
  const damage=Math.min(200,Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44))));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
- const retaliation=100;
+ // The training opponent hits bots back hard enough to eliminate them over several turns.
+ const retaliation=150+Math.floor(Math.random()*101);
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
  const delay=800+Math.floor(Math.random()*1001);
  setTimeout(()=>{
