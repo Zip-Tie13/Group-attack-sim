@@ -321,8 +321,10 @@ function updateTurnPosition(){
   const active=activeTurnOrder();
   const limit=Math.max(0,active.length-1);
   let current=Number(game.attackNumber)||1;
+  // If eliminations shrink the allowed range, hold at the new maximum.
+  // Do not reset to 1 here: only an actual attack advances/wraps the counter.
   if(limit===0)current=0;
-  else if(current>limit||current<1)current=1;
+  else current=Math.max(1,Math.min(current,limit));
   game.attackNumber=current;
   $("attackNumber").textContent=game.attackNumber||"—";
   $("participantCount").textContent=active.length+" LEFT";
@@ -330,16 +332,17 @@ function updateTurnPosition(){
 function advanceAttackTurn(wasCorrect){
   const all=game.turnOrder||[];
   const dead=new Set((game.dead||[]).map(String));
-  const current=all.indexOf(String(game.currentTurnId||""));
+  const currentIndex=all.indexOf(String(game.currentTurnId||""));
   for(let step=1;step<=all.length;step++){
-    const candidate=String(all[(Math.max(-1,current)+step)%all.length]);
+    const candidate=String(all[(Math.max(-1,currentIndex)+step)%all.length]);
     if(!dead.has(candidate)){game.currentTurnId=candidate;break;}
   }
-  // Advance the blue attack counter after every attack. When it reaches
-  // one below the living participant count, wrap to 1 for the next cycle.
-  const limit=Math.max(0,activeTurnOrder().length-1);
-  if(limit===0)game.attackNumber=0;
-  else game.attackNumber=(Number(game.attackNumber)||1)>=limit?1:(Number(game.attackNumber)||1)+1;
+  // One tap = one count. Sequence is 1, 2, 3 ... (living count - 1),
+  // then wraps to 1 and repeats for the next attack cycle.
+  const maxBlue=Math.max(0,activeTurnOrder().length-1);
+  const shown=Number(game.attackNumber)||1;
+  if(maxBlue===0)game.attackNumber=0;
+  else game.attackNumber=shown>=maxBlue?1:shown+1;
   updateTurnPosition();
 }
 function attack(weapon){
