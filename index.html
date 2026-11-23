@@ -210,6 +210,7 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
  channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;bots=payload.bots||bots;game.started=true;readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");renderGame();$("battle").classList.remove("hidden");addLog("Practice round started.");});
  channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;bots=payload.bots||bots;$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");renderGame();addLog("Leader reset the practice round.");});
+ channel.on("broadcast",{event:"battle-end"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||bots;game.started=false;readyCheckActive=false;clearInterval(readyTimer);renderGame();renderRoom();}});
  channel.on("broadcast",{event:"settings"},({payload})=>{game.memberDeaths=payload.memberDeaths??payload.deaths??game.memberDeaths;game.botDeaths=payload.botDeaths??game.botDeaths;game.deaths=game.memberDeaths;game.opponent=payload.opponent||game.opponent;bots=payload.bots||bots;$("deathToggle").checked=!!game.memberDeaths;$("botDeathToggle").checked=!!game.botDeaths;renderGame();renderMembers();});
  channel.on("broadcast",{event:"bot-update"},({payload})=>{bots=payload.bots||[];renderMembers();renderBots();});
  channel.on("broadcast",{event:"state-request"},()=>{if(isLeader)sendGameState();});
@@ -262,10 +263,12 @@ function renderReadyPanel(){
  $("readyPanelButton").textContent=readyFlag?"READY":"I'M READY";
 }
 async function beginReadyCheck(){
- if(!isLeader||!channel||game.started)return;
- // Clear the previous results screen and begin a completely fresh ready check.
+ if(!isLeader||!channel)return;
+ if(game.started&&Number(game.hp)>0){$("readyStatus").textContent="The current practice battle is still running. Finish it before calling another ready check.";return;}
+ // A completed round must never leave the next ready check locked out.
+ game.started=false;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=true;
  $("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");
- readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=true;
+ $("readyStatus").textContent="New ready check started. Everyone must press READY within 15 seconds.";
  members.forEach(m=>{m.ready=Number(m.playerId)===Number(leaderId);m.afk=false;});
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
  readyOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline,readyOrder:readyOrder}});
@@ -282,7 +285,7 @@ async function beginReadyCheck(){
   }else{updateReadyStatus();renderReadyPanel();}
  },250);
 }
-async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});syncMembers();updateReadyStatus();renderReadyPanel();}
+async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});renderMembers();updateReadyStatus();renderReadyPanel();}
 async function startBattle(){
  if(!isLeader||!readyCheckActive||!allReady())return;
  $("attackLogPanel").classList.remove("hidden");
@@ -361,7 +364,7 @@ function applyAttack(p,local){
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
  }
  advanceAttackTurn();renderGame();
- if(game.hp===0){game.started=false;addLog("Training target defeated!");showBattleReport();}
+ if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(isLeader)runBotTurns();
 }
 function opponentBotScale(){
