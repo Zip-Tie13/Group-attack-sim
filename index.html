@@ -42,7 +42,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
 @media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}\n.attack-log-panel{grid-column:1/-1!important;margin-top:0}.attack-log-panel #log{height:125px;min-height:125px;overflow-y:auto;scroll-behavior:smooth}
-.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n</style>
+.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
 </head>
 <body>
 <header><h1>SINISTER SICKS</h1><div class="small">GROUP ATTACK PRACTICE SIMULATOR</div></header>
@@ -72,6 +72,12 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="row"><div><h2>ROOM <span id="roomCodeLabel"></span></h2><div id="leaderLabel" class="status"></div></div><button class="gray" onclick="leaveRoom()">LEAVE ROOM</button></div>
 <div id="memberList"></div>
 <p id="readyStatus" class="status">Waiting for the leader to call ready.</p>
+<div id="readyPanel" class="panel hidden">
+ <h2>15-Second Ready Check</h2>
+ <div id="readyCountdown" class="status">15</div>
+ <div id="readyRoster"></div>
+ <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
+</div>
 <div id="leaderLobbyControls" class="hidden">
 <button class="blue" onclick="beginReadyCheck()">CALL READY CHECK (15 SECONDS)</button>
 <button class="green" id="startButton" onclick="startBattle()" disabled>START PRACTICE</button>
@@ -162,7 +168,13 @@ async function connectRoom(code,creator){
  channel=client.channel("sinister-sicks-room-"+roomCode,{config:{broadcast:{self:false},presence:{key:String(player.playerId||player.player_id)}}});
  channel.on("presence",{event:"sync"},()=>{syncMembers();});
  channel.on("broadcast",{event:"chat"},({payload})=>appendChat(payload.name,payload.message));
- channel.on("broadcast",{event:"ready-check"},({payload})=>{readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;readyFlag=false;trackPresence();renderRoom();clearInterval(readyTimer);if(readyCheckActive)readyTimer=setInterval(updateReadyStatus,250);});
+ channel.on("broadcast",{event:"ready-check"},({payload})=>{
+ readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;
+ if(payload.expired){const afkIds=(payload.afkIds||[]).map(String);members.forEach(m=>{m.afk=afkIds.includes(String(m.playerId));});}
+ if(readyCheckActive)readyFlag=false;trackPresence();renderRoom();clearInterval(readyTimer);
+ if(readyCheckActive)readyTimer=setInterval(()=>{updateReadyStatus();renderReadyPanel();},250);
+ else renderReadyPanel();
+});
  channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m)m.ready=!!payload.ready;renderMembers();});
  channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();renderRoom();}});
  channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
@@ -194,27 +206,49 @@ function renderRoom(){
  $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
  $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
  $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started);
- renderMembers();renderBots();updateReadyStatus();
+ renderMembers();renderBots();updateReadyStatus();renderReadyPanel();
 }
 function renderMembers(){
  const list=$("memberList");list.innerHTML="";
  const ordered=members.slice();if($("shuffleToggle")&&$("shuffleToggle").checked)ordered.sort(()=>Math.random()-.5);
- ordered.forEach(m=>{const div=document.createElement("div");div.className="member";const left=document.createElement("span");left.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const right=document.createElement("span");right.className=m.ready?"ready":"notready";right.textContent=m.ready?"READY":"NOT READY";div.append(left,right);list.appendChild(div);});
+ ordered.forEach(m=>{const div=document.createElement("div");div.className="member";const left=document.createElement("span");left.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const right=document.createElement("span");right.className=m.afk?"afk":(m.ready?"ready":"notready");right.textContent=m.afk?"AFK":(m.ready?"READY":"NOT READY");div.append(left,right);list.appendChild(div);});
  bots.forEach(b=>{const div=document.createElement("div");div.className="member";div.innerHTML="<span>"+safeText(b.name)+" (BOT)</span><span class='status'>PRACTICE BOT</span>";list.appendChild(div);});
  if(!members.length)list.textContent="Waiting for faction members...";
 }
 function renderBots(){$("botList").textContent=bots.length?"Bots: "+bots.map(b=>b.name).join(", "):"No practice bots added.";}
-function allReady(){return members.length>0&&members.every(m=>m.ready);}
+function allReady(){return members.length>0&&members.every(m=>m.ready&&!m.afk);}
 function updateReadyStatus(){
- if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can start.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready).length+"/"+members.length+" ready.";if(isLeader)$("startButton").disabled=!allReady()||left<=0;}
- else{$("readyStatus").textContent="Waiting for the leader to call ready.";if(isLeader)$("startButton").disabled=true;}
+ if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can start.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready&&!m.afk).length+"/"+members.length+" ready.";if(isLeader)$("startButton").disabled=!allReady()||left<=0;}
+ else{$("readyStatus").textContent=members.some(m=>m.afk)?"Ready check expired. AFK members must rejoin before another check.":"Waiting for the leader to call ready.";if(isLeader)$("startButton").disabled=true;}
+}
+function renderReadyPanel(){
+ const panel=$("readyPanel");if(!panel)return;
+ panel.classList.toggle("hidden",!readyCheckActive&&!members.some(m=>m.afk));
+ const list=$("readyRoster");list.innerHTML="";
+ members.forEach(m=>{const row=document.createElement("div");row.className="member";const name=document.createElement("span");name.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const status=document.createElement("span");status.className=m.afk?"afk":(m.ready?"ready":"notready");status.textContent=m.afk?"AFK":(m.ready?"READY":"WAITING");row.append(name,status);list.appendChild(row);});
+ const left=readyCheckActive?Math.max(0,Math.ceil((readyDeadline-Date.now())/1000)):0;
+ $("readyCountdown").textContent=readyCheckActive?left+" SECONDS":(members.some(m=>m.afk)?"CHECK EXPIRED":"READY CHECK");
+ $("readyPanelButton").classList.toggle("hidden",!readyCheckActive||readyFlag||isLeader);
+ $("readyPanelButton").textContent=readyFlag?"READY":"I'M READY";
 }
 async function beginReadyCheck(){
  if(!isLeader||!channel)return;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=true;
- members.forEach(m=>m.ready=Number(m.playerId)===Number(leaderId));await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
- renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{if(allReady()){clearInterval(readyTimer);updateReadyStatus();}else if(Date.now()>=readyDeadline){readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0}});$("readyStatus").textContent="Ready check expired. Leader must call ready check again.";updateReadyStatus();}else updateReadyStatus();},250);
+ members.forEach(m=>{m.ready=Number(m.playerId)===Number(leaderId);m.afk=false;});
+ await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
+ await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
+ renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
+  if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();}
+  else if(Date.now()>=readyDeadline){
+   readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);
+   members.forEach(m=>m.afk=!m.ready);
+   const afkIds=members.filter(m=>m.afk).map(m=>String(m.playerId));
+   await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0,expired:true,afkIds}});
+   $("readyStatus").textContent="Ready check expired. AFK members are marked.";
+   renderRoom();
+  }else{updateReadyStatus();renderReadyPanel();}
+ },250);
 }
-async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(player.playerId||player.player_id),ready:value}});syncMembers();updateReadyStatus();}
+async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});syncMembers();updateReadyStatus();renderReadyPanel();}
 async function startBattle(){
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
  game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[],turnOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
