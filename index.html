@@ -21,7 +21,13 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .weapon{background:#252e3b;border:1px solid #465266;padding:12px;border-radius:8px}.weapon button{width:100%;margin:7px 0 0}
 .opponent{display:flex;align-items:center;justify-content:space-between;gap:12px}.person{font-size:54px}
 .bubble{background:#1767ad;border-radius:50%;padding:10px 14px;font-weight:bold}
-.arena{display:grid;grid-template-columns:minmax(0,1fr) 86px;gap:10px;align-items:stretch;min-height:290px;margin:10px 0}
+#battle{position:relative}.arena{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:stretch;min-height:290px;margin:10px 0}
+#readyPanel.ready-overlay{position:fixed;inset:0;z-index:9999;margin:0;padding:22px 16px;background:rgba(5,9,15,.96);border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;overflow:auto}
+#readyPanel.ready-overlay h2{text-align:center;font-size:24px}
+#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}
+#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}
+#readyPanel.ready-overlay #readyCountdown{font-size:34px;font-weight:900;text-align:center;color:#72b7ff;padding:12px}
+
 .fighter-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:290px;border:1px solid #354253;border-radius:12px;background:radial-gradient(ellipse at 50% 65%,#354253 0,#1a222d 55%,#111720 100%);overflow:hidden}
 .fighter{font-size:clamp(145px,34vw,245px);line-height:1;filter:drop-shadow(0 8px 5px #0008);transform:scaleX(.9)}
 .fighter-number{position:absolute;top:12px;right:12px}
@@ -31,7 +37,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .weapon-pic .weapon-icon{font-size:32px;line-height:1.1}
 .weapon-pic .weapon-label{font-size:9px;color:#dce5f1;letter-spacing:.3px}
 .weapon-pic:active{transform:scale(.96)}
-@media(max-width:420px){.arena{grid-template-columns:minmax(0,1fr) 76px;min-height:260px}.fighter-stage{min-height:260px}.fighter{font-size:clamp(145px,43vw,205px)}.weapon-pic{min-height:58px}.weapon-pic .weapon-icon{font-size:29px}}
+@media(max-width:420px){.arena{grid-template-columns:76px minmax(0,1fr);min-height:260px}.fighter-stage{min-height:260px}.fighter{font-size:clamp(145px,43vw,205px)}.weapon-pic{min-height:58px}.weapon-pic .weapon-icon{font-size:29px}}
 .health{height:14px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}.health div{height:100%;width:100%;background:#36a45b}
 #log{height:150px;overflow:auto;background:#0c1016;padding:10px;border-radius:6px;font-size:13px}
 .member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
@@ -72,12 +78,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="row"><div><h2>ROOM <span id="roomCodeLabel"></span></h2><div id="leaderLabel" class="status"></div></div><button class="gray" onclick="leaveRoom()">LEAVE ROOM</button></div>
 <div id="memberList"></div>
 <p id="readyStatus" class="status">Waiting for the leader to call ready.</p>
-<div id="readyPanel" class="panel hidden">
- <h2>15-Second Ready Check</h2>
- <div id="readyCountdown" class="status">15</div>
- <div id="readyRoster"></div>
- <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
-</div>
+
 <div id="leaderLobbyControls" class="hidden">
 <button class="blue" onclick="beginReadyCheck()">CALL READY CHECK (15 SECONDS)</button>
 <button class="green" id="startButton" onclick="startBattle()" disabled>START PRACTICE</button>
@@ -86,6 +87,12 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 </section>
 
 <section id="battle" class="hidden">
+<div id="readyPanel" class="panel hidden">
+ <h2>15-Second Ready Check</h2>
+ <div id="readyCountdown" class="status">15</div>
+ <div id="readyRoster"></div>
+ <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
+</div>
 <div class="battlegrid">
 <section class="panel wide">
 <div id="battleActionArea">
@@ -93,13 +100,13 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
- <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span><span class="participant-count" id="participantCount">0 ACTIVE</span></div>
  <div class="weapon-dock" aria-label="Practice weapons">
   <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onclick="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
   <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onclick="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
   <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onclick="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
   <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onclick="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
  </div>
+ <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span><span class="participant-count" id="participantCount">0 ACTIVE</span></div>
 </div>
 <div id="battleNotice" class="status"></div>
 <p class="small">Tap a weapon picture to attack. All damage is simulated; no real Torn energy, weapons, or items are used.</p>
@@ -171,15 +178,17 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"ready-check"},({payload})=>{
  readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;
  if(payload.expired){const afkIds=(payload.afkIds||[]).map(String);members.forEach(m=>{m.afk=afkIds.includes(String(m.playerId));});}
- if(readyCheckActive)readyFlag=false;trackPresence();renderRoom();clearInterval(readyTimer);
+ if(readyCheckActive){readyFlag=false;$("battle").classList.remove("hidden");$("battleActionArea").classList.add("hidden");$("readyPanel").classList.add("ready-overlay");}
+ else{$("readyPanel").classList.remove("ready-overlay");$("battleActionArea").classList.remove("hidden");if(!game.started)$("battle").classList.add("hidden");}
+ trackPresence();renderRoom();clearInterval(readyTimer);
  if(readyCheckActive)readyTimer=setInterval(()=>{updateReadyStatus();renderReadyPanel();},250);
  else renderReadyPanel();
 });
- channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m)m.ready=!!payload.ready;renderMembers();});
+ channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m){m.ready=!!payload.ready;m.afk=false;}renderMembers();renderReadyPanel();updateReadyStatus();});
  channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();renderRoom();}});
  channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
- channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;game.started=true;renderGame();$("battle").classList.remove("hidden");addLog("Practice round started by the leader.");});
+ channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;game.started=true;readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");renderGame();$("battle").classList.remove("hidden");addLog("Practice round started.");});
  channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;renderGame();addLog("Leader reset the practice round.");});
  channel.on("broadcast",{event:"settings"},({payload})=>{game.deaths=payload.deaths;game.opponent=payload.opponent;bots=payload.bots||[];renderGame();});
  channel.on("broadcast",{event:"bot-update"},({payload})=>{bots=payload.bots||[];renderMembers();renderBots();});
@@ -223,7 +232,8 @@ function updateReadyStatus(){
 }
 function renderReadyPanel(){
  const panel=$("readyPanel");if(!panel)return;
- panel.classList.toggle("hidden",!readyCheckActive&&!members.some(m=>m.afk));
+ panel.classList.toggle("hidden",!readyCheckActive&&!members.some(m=>m.afk)&&!game.started);
+ if(readyCheckActive)panel.classList.add("ready-overlay");else panel.classList.remove("ready-overlay");
  const list=$("readyRoster");list.innerHTML="";
  members.forEach(m=>{const row=document.createElement("div");row.className="member";const name=document.createElement("span");name.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const status=document.createElement("span");status.className=m.afk?"afk":(m.ready?"ready":"notready");status.textContent=m.afk?"AFK":(m.ready?"READY":"WAITING");row.append(name,status);list.appendChild(row);});
  const left=readyCheckActive?Math.max(0,Math.ceil((readyDeadline-Date.now())/1000)):0;
@@ -237,13 +247,14 @@ async function beginReadyCheck(){
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
  await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
  renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
-  if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();}
+  if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0,allReady:true}});await startBattle();}
   else if(Date.now()>=readyDeadline){
    readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);
    members.forEach(m=>m.afk=!m.ready);
    const afkIds=members.filter(m=>m.afk).map(m=>String(m.playerId));
    await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0,expired:true,afkIds}});
    $("readyStatus").textContent="Ready check expired. AFK members are marked.";
+   $("readyPanel").classList.remove("ready-overlay");$("battleActionArea").classList.remove("hidden");$("battle").classList.add("hidden");
    renderRoom();
   }else{updateReadyStatus();renderReadyPanel();}
  },250);
@@ -254,7 +265,7 @@ async function startBattle(){
  game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[],turnOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
  members.forEach(m=>game.playerHp[String(m.playerId)]=1000);
  game.currentTurnId=game.turnOrder[0]||"";
- await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Leader started the practice round.");
+ readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");
 }
 function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
 async function saveSettings(){if(!isLeader)return;game.deaths=$("deathToggle").checked;game.opponent=readStats();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader updated practice settings.");}
