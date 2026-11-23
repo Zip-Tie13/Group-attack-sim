@@ -417,7 +417,9 @@ function applyAttack(p,local){
  const actorIsBot=!!p.isBot||bots.some(b=>String(b.id)===actor);
  const blue=Number(game.attackNumber)||0;
  const wrongBlue=actorIsBot?blue>=liveWindow:blue!==liveWindow;
- const outOfTurn=actor!==expectedActor||wrongBlue;
+ const outOfTurn=actor!==expectedActor||wrongBlue||p.outOfTurnAtSource===true;
+ // Carry the attacker's out-of-turn result with the broadcast so the leader's final report cannot lose it during state timing differences.
+ p.outOfTurnAtSource=outOfTurn;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
  game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});game.outOfTurnCounts=game.outOfTurnCounts||{};if(outOfTurn)game.outOfTurnCounts[actor]=(Number(game.outOfTurnCounts[actor])||0)+1;
