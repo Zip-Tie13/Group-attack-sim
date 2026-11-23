@@ -402,10 +402,15 @@ function applyAttack(p,local){
  if(p.weapon==="Flashbang"&&(game.tempUsedBy[actor]||bots.some(b=>String(b.id)===actor)))return;
  if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;
  // The leader room state is authoritative for remote attacks; do not trust a stale sender turn pointer.
- const expected=String((isLeader&&!local)?(game.currentTurnId||""):(p.expectedTurnId||game.currentTurnId||""));const at=Number(p.attackAt)||Date.now();
+ const activeOrder=activeTurnOrder();
+ const liveWindow=Math.max(0,activeOrder.length-1);
+ const livingMembers=activeOrder.filter(id=>members.some(m=>String(m.playerId)===String(id)));
+ const nextUnplayedMember=livingMembers.find(id=>!(game.memberTurnDone||{})[String(id)]);
+ // The leader checks the real rotation, not a possibly stale currentTurnId supplied by a client.
+ const expected=String(isLeader?(Number(game.attackNumber)===liveWindow?(nextUnplayedMember||game.currentTurnId||""):(game.currentTurnId||"")):(p.expectedTurnId||game.currentTurnId||""));
+ const at=Number(p.attackAt)||Date.now();
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
- const activeOrder=activeTurnOrder();
  const actorIndex=activeOrder.indexOf(actor);
  const expectedActor=expected;
  const expectedIndex=activeOrder.indexOf(expectedActor);
@@ -413,7 +418,6 @@ function applyAttack(p,local){
  const actualPosition=actorIndex+1;
  const actorIsBot=!!p.isBot||bots.some(b=>String(b.id)===actor);
  const blue=Number(game.attackNumber)||0;
- const liveWindow=Math.max(0,activeOrder.length-1);
  const wrongBlue=actorIsBot?blue>=liveWindow:blue!==liveWindow;
  const outOfTurn=actor!==expectedActor||wrongBlue;
  p.expectedPosition=expectedPosition;
