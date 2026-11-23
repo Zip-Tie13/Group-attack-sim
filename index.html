@@ -117,6 +117,12 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 </div>
 </section>
 
+<section class="panel wide attack-log-panel">
+<div class="attack-log-heading"><h2>Attack Log</h2><span id="participantCount" class="active-count-bubble">0 LEFT</span></div>
+<div id="log">Room battle ready.</div>
+<div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
+</section>
+
 <section id="battleReport" class="panel wide hidden">
 <h2>Battle Results</h2>
 <p class="small">Out-of-turn attacks are marked EARLY or LATE compared with the attack position displayed when the attack was made. Average time is measured between each participant's attacks (first attack measured from round start).</p>
@@ -124,12 +130,6 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div class="report-table-wrap"><table class="report-table"><thead><tr><th>Player / Bot</th><th>Attacks</th><th>Out of turn</th><th>Average time</th></tr></thead><tbody id="reportRows"></tbody></table></div>
 <div id="outOfTurnDetails" class="small"></div>
 </section>
-<section class="panel wide attack-log-panel">
-<div class="attack-log-heading"><h2>Attack Log</h2><span id="participantCount" class="active-count-bubble">0 LEFT</span></div>
-<div id="log">Room battle ready.</div>
-<div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
-</section>
-
 <section id="leaderSettings" class="panel hidden">
 <h2>Leader Settings</h2>
 <label><input type="checkbox" id="deathToggle" checked> Enable practice deaths</label><br>
