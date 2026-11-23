@@ -52,7 +52,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .attack-log-heading h2{margin:0}
 .active-count-bubble{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:7px 11px;border-radius:999px;background:#facc15;color:#241b00;border:2px solid #fde68a;font-size:12px;font-weight:900;letter-spacing:.4px;white-space:nowrap;box-shadow:0 2px 8px #0006}
 
-.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
+.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyPanel.ready-overlay{position:fixed;inset:0;z-index:9999;margin:0;padding:22px 16px;background:rgba(5,9,15,.98);border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;max-height:100vh}#readyPanel.ready-overlay h2{text-align:center;font-size:24px}#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
 </head>
 <body>
 <header><h1>SINISTER SICKS</h1><div class="small">GROUP ATTACK PRACTICE SIMULATOR</div></header>
@@ -90,6 +90,13 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div id="memberLobbyControls"><button class="green" id="readyButton" onclick="setReady(true)">I'M READY</button></div>
 </section>
 
+<div id="readyPanel" class="panel hidden">
+ <h2>15-Second Ready Check</h2>
+ <div id="readyCountdown" class="status">15</div>
+ <div id="readyRoster"></div>
+ <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
+</div>
+
 <section id="leaderSettings" class="panel hidden">
 <h2>Leader Settings — Configure Before Battle</h2>
 <label><input type="checkbox" id="deathToggle" checked> Enable member deaths during attacks</label><br>
@@ -109,12 +116,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <p class="small">Set opponent stats, bot participation, and death rules here before calling the first ready check.</p>
 </section>
 <section id="battle" class="hidden">
-<div id="readyPanel" class="panel hidden">
- <h2>15-Second Ready Check</h2>
- <div id="readyCountdown" class="status">15</div>
- <div id="readyRoster"></div>
- <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
-</div>
+
 <div class="battlegrid">
 <section class="panel wide">
 <div id="battleActionArea">
@@ -160,7 +162,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 const SUPABASE_URL="https://nzrrqchdewvycrprbsos.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
 let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
-let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false;
+let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false,botTurnToken=0;
 let game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:false,deaths:true,memberDeaths:true,botDeaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{},dead:[]};
 const $=id=>document.getElementById(id);
 function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -271,7 +273,7 @@ async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=v
 async function startBattle(){
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
  game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
- members.forEach(m=>game.playerHp[String(m.playerId)]=1000);bots.forEach(b=>game.playerHp[String(b.id)]=500);
+ members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();
  game.currentTurnId=game.turnOrder[0]||"";
  readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");runBotTurns();
 }
@@ -329,20 +331,46 @@ function applyAttack(p,local){
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
   const actorHpId=String(p.actorId||p.playerId||"");
   const takesDamage=p.isBot?!!game.botDeaths:!!game.memberDeaths;
-  if(takesDamage){const maxHp=p.isBot?500:1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
+  if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):1000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
  }
  advanceAttackTurn();renderGame();
  if(game.hp===0){game.started=false;addLog("Training target defeated!");showBattleReport();}
  else if(isLeader)runBotTurns();
 }
+function opponentBotScale(){
+ const o=game.opponent||{};
+ const total=Math.max(1,(Number(o.strength)||0)+(Number(o.defense)||0)+(Number(o.speed)||0)+(Number(o.dex)||0));
+ return Math.max(0.55,Math.min(2.8,Math.sqrt(total/2000)));
+}
+function prepareBotHealth(){
+ const scale=opponentBotScale();
+ bots.forEach((b,index)=>{
+  const variation=0.78+Math.random()*0.48;
+  const hp=Math.max(180,Math.round(460*scale*variation));
+  b.maxHp=hp;
+  game.playerHp[String(b.id)]=hp;
+ });
+}
 function runBotTurns(){
  if(!isLeader||!game.started)return;
  const actor=String(game.currentTurnId||"");
  const bot=bots.find(b=>String(b.id)===actor);
  if(!bot)return;
- const payload={weapon:"Bot strike",damage:90,retaliation:Math.max(1,Math.round((game.opponent.strength||500)/10)),playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
- setTimeout(()=>{if(!game.started||String(game.currentTurnId)!==actor)return;applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});},350);
+ const token=++botTurnToken;
+ const scale=opponentBotScale();
+ const hp=Math.max(1,Number(game.playerHp[actor]??bot.maxHp??460));
+ const damage=Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44)));
+ const strength=Math.max(1,Number(game.opponent?.strength)||500);
+ const retaliation=Math.max(1,Math.round((strength/12)*(0.72+Math.random()*0.56)));
+ const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
+ const delay=1400+Math.floor(Math.random()*3301);
+ setTimeout(()=>{
+  if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
+  payload.attackAt=Date.now();
+  applyAttack(payload,true);
+  channel.send({type:"broadcast",event:"attack",payload:payload});
+ },delay);
 }
 function renderGame(){
  $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";updateTurnPosition();
@@ -368,7 +396,7 @@ function showBattleReport(){
  $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' threw '+safeText(a.weapon)+' from ready-menu position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId)+') to attack. This shows what they threw and where they were in the ready order.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
  $("battleReport").classList.remove("hidden");
 }
-async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);bots.forEach(b=>game.playerHp[String(b.id)]=500);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
