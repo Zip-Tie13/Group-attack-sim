@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const tornResponse = await fetch(
-      `https://api.torn.com/user/?selections=basic,faction&key==${encodeURIComponent(apiKey)}`
+      `https://api.torn.com/user/?selections=basic,faction&key=${encodeURIComponent(apiKey)}`
     );
 
     const player = await tornResponse.json();
