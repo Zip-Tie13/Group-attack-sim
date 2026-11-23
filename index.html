@@ -52,9 +52,15 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .attack-log-heading h2{margin:0}
 .active-count-bubble{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:7px 11px;border-radius:999px;background:#facc15;color:#241b00;border:2px solid #fde68a;font-size:12px;font-weight:900;letter-spacing:.4px;white-space:nowrap;box-shadow:0 2px 8px #0006}
 
-.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyPanel.ready-overlay{position:fixed;inset:0;z-index:9999;margin:0;padding:22px 16px;background:rgba(5,9,15,.98);border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;max-height:100vh}#readyPanel.ready-overlay h2{text-align:center;font-size:24px}#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
+.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyPanel.ready-overlay{position:fixed;inset:0;z-index:2147483647;margin:0!important;padding:22px 16px;background:rgba(5,9,15,.98);border:0;border-radius:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;display:flex!important;flex-direction:column;justify-content:center;align-items:stretch;overflow-y:auto;overscroll-behavior:contain}#readyPanel.ready-overlay h2{text-align:center;font-size:24px}#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
 </head>
 <body>
+<div id="readyPanel" class="panel hidden">
+ <h2>15-Second Ready Check</h2>
+ <div id="readyCountdown" class="status">15</div>
+ <div id="readyRoster"></div>
+ <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
+</div>
 <header><h1>SINISTER SICKS</h1><div class="small">GROUP ATTACK PRACTICE SIMULATOR</div></header>
 
 <section id="login" class="panel">
@@ -90,31 +96,9 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div id="memberLobbyControls"><button class="green" id="readyButton" onclick="setReady(true)">I'M READY</button></div>
 </section>
 
-<div id="readyPanel" class="panel hidden">
- <h2>15-Second Ready Check</h2>
- <div id="readyCountdown" class="status">15</div>
- <div id="readyRoster"></div>
- <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
-</div>
 
-<section id="leaderSettings" class="panel hidden">
-<h2>Leader Settings — Configure Before Battle</h2>
-<label><input type="checkbox" id="deathToggle" checked> Enable member deaths during attacks</label><br>
-<label><input type="checkbox" id="botDeathToggle" checked> Enable bot deaths during attacks</label><br>
-<label><input type="checkbox" id="shuffleToggle"> Shuffle player positions</label><br>
-<label><input type="checkbox" id="botToggle"> Allow practice bots</label><br>
-<div class="statgrid">
-<label>Opponent strength<input type="number" id="statStrength" value="500" min="0"></label>
-<label>Opponent defense<input type="number" id="statDefense" value="500" min="0"></label>
-<label>Opponent speed<input type="number" id="statSpeed" value="500" min="0"></label>
-<label>Opponent dexterity<input type="number" id="statDex" value="500" min="0"></label>
-</div>
-<button class="blue" onclick="saveSettings()">SAVE SETTINGS</button>
-<button class="gray" onclick="addBot()">ADD PRACTICE BOT</button>
-<button class="gray" onclick="shufflePlayers()">SHUFFLE PLAYERS</button>
-<div id="botList" class="small"></div>
-<p class="small">Set opponent stats, bot participation, and death rules here before calling the first ready check.</p>
-</section>
+
+
 <section id="battle" class="hidden">
 
 <div class="battlegrid">
@@ -153,6 +137,24 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 
 </div>
 </section>
+<section id="leaderSettings" class="panel hidden">
+<h2>Leader Settings — Configure Before Battle</h2>
+<label><input type="checkbox" id="deathToggle" checked> Enable member deaths during attacks</label><br>
+<label><input type="checkbox" id="botDeathToggle" checked> Enable bot deaths during attacks</label><br>
+<label><input type="checkbox" id="shuffleToggle"> Shuffle player positions</label><br>
+<label><input type="checkbox" id="botToggle"> Allow practice bots</label><br>
+<div class="statgrid">
+<label>Opponent strength<input type="number" id="statStrength" value="500" min="0"></label>
+<label>Opponent defense<input type="number" id="statDefense" value="500" min="0"></label>
+<label>Opponent speed<input type="number" id="statSpeed" value="500" min="0"></label>
+<label>Opponent dexterity<input type="number" id="statDex" value="500" min="0"></label>
+</div>
+<button class="blue" onclick="saveSettings()">SAVE SETTINGS</button>
+<button class="gray" onclick="addBot()">ADD PRACTICE BOT</button>
+<button class="gray" onclick="shufflePlayers()">SHUFFLE PLAYERS</button>
+<div id="botList" class="small"></div>
+<p class="small">Set opponent stats, bot participation, and death rules here before calling the first ready check.</p>
+</section>
 </main>
 
 <button id="chatPopup" class="blue hidden" onclick="toggleChat()">GROUP CHAT</button>
@@ -188,8 +190,8 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"ready-check"},({payload})=>{
  readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;if(Array.isArray(payload.readyOrder))readyOrder=payload.readyOrder.map(String);
  if(payload.expired){const afkIds=(payload.afkIds||[]).map(String);members.forEach(m=>{m.afk=afkIds.includes(String(m.playerId));});}
- if(readyCheckActive){readyFlag=false;$("battle").classList.remove("hidden");$("battleActionArea").classList.add("hidden");$("readyPanel").classList.add("ready-overlay");}
- else{$("readyPanel").classList.remove("ready-overlay");$("battleActionArea").classList.remove("hidden");if(!game.started)$("battle").classList.add("hidden");}
+ if(readyCheckActive){readyFlag=false;$("battle").classList.remove("hidden");$("battleActionArea").classList.add("hidden");$("readyPanel").classList.remove("hidden");$("readyPanel").classList.add("ready-overlay");}
+ else{$("readyPanel").classList.remove("ready-overlay");$("battleActionArea").classList.remove("hidden");if(!game.started)$("battle").classList.add("hidden");else setTimeout(()=>$("battle").scrollIntoView({behavior:"smooth",block:"start"}),80);}
  trackPresence();renderRoom();clearInterval(readyTimer);
  if(readyCheckActive)readyTimer=setInterval(()=>{updateReadyStatus();renderReadyPanel();},250);
  else renderReadyPanel();
@@ -256,7 +258,7 @@ async function beginReadyCheck(){
  members.forEach(m=>{m.ready=Number(m.playerId)===Number(leaderId);m.afk=false;});
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
  readyOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline,readyOrder:readyOrder}});
- renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
+ $("readyPanel").classList.remove("hidden");$("readyPanel").classList.add("ready-overlay");$("battleActionArea").classList.add("hidden");renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
   if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0,allReady:true}});await startBattle();}
   else if(Date.now()>=readyDeadline){
    readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);
@@ -276,7 +278,7 @@ async function startBattle(){
  game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
  members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();
  game.currentTurnId=game.turnOrder[0]||"";
- readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");renderGame();addLog("Practice round started.");runBotTurns();
+ readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");$("battleActionArea").classList.remove("hidden");renderGame();addLog("Practice round started.");setTimeout(()=>$("battle").scrollIntoView({behavior:"smooth",block:"start"}),80);runBotTurns();
 }
 function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
 async function saveSettings(){if(!isLeader)return;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.opponent=readStats();game.baseOpponent={...game.opponent};await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,memberDeaths:game.memberDeaths,botDeaths:game.botDeaths,opponent:game.opponent,bots:bots}});addLog("Leader saved practice settings.");renderGame();}
@@ -348,7 +350,7 @@ function prepareBotHealth(){
  const scale=opponentBotScale();
  bots.forEach((b,index)=>{
   const variation=0.78+Math.random()*0.48;
-  const hp=Math.max(180,Math.round(460*scale*variation));
+  const hp=Math.max(300,Math.round(700*scale*(0.90+Math.random()*0.35)));
   b.maxHp=hp;
   game.playerHp[String(b.id)]=hp;
  });
@@ -363,9 +365,9 @@ function runBotTurns(){
  const hp=Math.max(1,Number(game.playerHp[actor]??bot.maxHp??460));
  const damage=Math.max(25,Math.round(82*scale*(0.78+Math.random()*0.44)));
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
- const retaliation=Math.max(1,Math.round((strength/12)*(0.72+Math.random()*0.56)));
+ const retaliation=Math.max(1,Math.round((strength/18)*(0.70+Math.random()*0.48)));
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
- const delay=1400+Math.floor(Math.random()*3301);
+ const delay=700+Math.floor(Math.random()*1201);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
