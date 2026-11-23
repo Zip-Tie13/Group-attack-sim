@@ -25,6 +25,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .fighter-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:290px;border:1px solid #354253;border-radius:12px;background:radial-gradient(ellipse at 50% 65%,#354253 0,#1a222d 55%,#111720 100%);overflow:hidden}
 .fighter{font-size:clamp(145px,34vw,245px);line-height:1;filter:drop-shadow(0 8px 5px #0008);transform:scaleX(.9)}
 .fighter-number{position:absolute;top:12px;right:12px}
+.participant-count{position:absolute;top:12px;left:12px;background:#111b29dd;border:1px solid #526176;border-radius:7px;padding:7px 9px;font-size:11px;font-weight:bold;color:#bcdcff;letter-spacing:.4px}
 .weapon-dock{display:flex;flex-direction:column;justify-content:center;gap:9px}
 .weapon-pic{width:100%;min-height:62px;margin:0;padding:5px 2px;border:1px solid #526176;border-radius:10px;background:linear-gradient(145deg,#303d4e,#1a222d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .weapon-pic .weapon-icon{font-size:32px;line-height:1.1}
@@ -85,7 +86,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
- <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span></div>
+ <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span><span class="participant-count" id="participantCount">0 ACTIVE</span></div>
  <div class="weapon-dock" aria-label="Practice weapons">
   <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onclick="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
   <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onclick="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
@@ -206,38 +207,75 @@ async function beginReadyCheck(){
 async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(player.playerId||player.player_id),ready:value}});syncMembers();updateReadyStatus();}
 async function startBattle(){
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
- game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[]};
+ game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:true,deaths:$("deathToggle").checked,opponent:readStats(),playerHp:{},dead:[],turnOrder:[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))],currentTurnId:""};
  members.forEach(m=>game.playerHp[String(m.playerId)]=1000);
+ game.currentTurnId=game.turnOrder[0]||"";
  await channel.send({type:"broadcast",event:"battle-start",payload:{game:game}});$("battle").classList.remove("hidden");renderGame();addLog("Leader started the practice round.");
 }
 function readStats(){return {strength:Number($("statStrength").value)||0,defense:Number($("statDefense").value)||0,speed:Number($("statSpeed").value)||0,dex:Number($("statDex").value)||0};}
 async function saveSettings(){if(!isLeader)return;game.deaths=$("deathToggle").checked;game.opponent=readStats();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader updated practice settings.");}
 async function addBot(){if(!isLeader||!$("botToggle").checked){alert("Turn on Allow practice bots first.");return;}bots.push({id:"bot-"+Date.now(),name:"Practice Bot "+(bots.length+1)});await channel.send({type:"broadcast",event:"bot-update",payload:{bots:bots}});renderBots();renderMembers();}
 async function shufflePlayers(){if(!isLeader)return;members.sort(()=>Math.random()-.5);renderMembers();await channel.send({type:"broadcast",event:"settings",payload:{deaths:game.deaths,opponent:game.opponent,bots:bots}});addLog("Leader shuffled the player order.");}
+function activeTurnOrder(){
+ const dead=new Set((game.dead||[]).map(String));
+ return (game.turnOrder||[]).filter(id=>String(id).startsWith("bot-")||!dead.has(String(id)));
+}
+function updateTurnPosition(){
+ const active=activeTurnOrder();const idx=active.indexOf(String(game.currentTurnId));
+ game.attackNumber=active.length?(idx>=0?idx+1:1):0;
+ $("attackNumber").textContent=game.attackNumber||"—";
+ $("participantCount").textContent=active.length+" ACTIVE";
+}
+function advanceAttackTurn(){
+ const order=activeTurnOrder();if(!order.length){game.currentTurnId="";updateTurnPosition();return;}
+ const current=order.indexOf(String(game.currentTurnId));
+ game.currentTurnId=order[(current+1+order.length)%order.length];
+ updateTurnPosition();
+}
 function attack(weapon){
- if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
+ if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
+ if(String(game.currentTurnId)!==me){$("battleNotice").textContent="Wait for your turn. It is "+(members.find(m=>String(m.playerId)===String(game.currentTurnId))?.name||bots.find(b=>String(b.id)===String(game.currentTurnId))?.name||"another participant")+"'s turn.";return;}
+ if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
- const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),name:player.playerName};
+ const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
-function flashbang(){if(!game.started||game.flashUsed||spectating)return;game.flashUsed=true;const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(player.playerId||player.player_id),name:player.playerName};applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});}
-function attackTurnCount(){return Math.max(1,members.length+bots.length);}
-function advanceAttackTurn(){const total=attackTurnCount();game.attackNumber=(Number(game.attackNumber||1)%total)+1;}
+function flashbang(){
+ if(!game.started||game.flashUsed||spectating)return;const me=String(player.playerId||player.player_id);
+ if(String(game.currentTurnId)!==me){$("battleNotice").textContent="Wait for your turn.";return;}
+ const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName};
+ applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
+}
 function applyAttack(p,local){
  if(!p||!game.started)return;
- advanceAttackTurn();
- if(p.weapon==="Flashbang"){game.flashUsed=true;$("tempButton").disabled=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
- else{game.hp=Math.max(0,game.hp-(Number(p.damage)||0));if(game.deaths){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");}
- renderGame();if(game.hp===0){game.started=false;addLog("Training target defeated!");}
+ const actor=String(p.actorId||p.playerId||"");
+ if(actor!==String(game.currentTurnId))return;
+ if(p.weapon==="Flashbang"){game.flashUsed=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
+ else{
+  game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
+  if(game.deaths&&!p.isBot){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}
+  addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
+ }
+ advanceAttackTurn();renderGame();
+ if(game.hp===0){game.started=false;addLog("Training target defeated!");}
+ else if(isLeader)runBotTurns();
+}
+function runBotTurns(){
+ if(!isLeader||!game.started)return;
+ const actor=String(game.currentTurnId||"");
+ const bot=bots.find(b=>String(b.id)===actor);
+ if(!bot)return;
+ const payload={weapon:"Bot strike",damage:90,retaliation:0,playerId:0,actorId:actor,name:bot.name,isBot:true};
+ setTimeout(()=>{if(!game.started||String(game.currentTurnId)!==actor)return;applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});},350);
 }
 function renderGame(){
- $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";$("attackNumber").textContent=game.attackNumber;
+ $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";updateTurnPosition();
  const me=String(player.playerId||player.player_id);$("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
  $("battleNotice").textContent=spectating?"You are watching this round.":(game.deaths&&game.dead&&game.dead.includes(me)?"You are knocked out. Rejoin or watch.":"");
  $("tempButton").disabled=!!game.flashUsed;$("deathActions").classList.toggle("hidden",!(game.deaths&&game.dead&&game.dead.includes(me)));
 }
-async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
+async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};game.turnOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];game.currentTurnId=game.turnOrder[0]||"";members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
 async function rejoinBattle(){const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>x!==me);spectating=false;$("deathActions").classList.add("hidden");renderGame();if(isLeader)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});else await channel.send({type:"broadcast",event:"state-request",payload:{}});addLog(player.playerName+" rejoined the practice round.");}
 function watchBattle(){spectating=true;$("deathActions").classList.add("hidden");renderGame();addLog(player.playerName+" is watching the practice round.");}
 function appendChat(name,message){const line=document.createElement("div");line.textContent=name+": "+message;$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;}
