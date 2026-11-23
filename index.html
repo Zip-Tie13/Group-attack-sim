@@ -61,6 +61,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
  <div id="readyCountdown" class="status">15</div>
  <div id="readyRoster"></div>
  <button id="readyPanelButton" class="green" onclick="setReady(true)">I'M READY</button>
+ <button id="readyPanelStartButton" class="green hidden" onclick="startBattle()" disabled>START MATCH</button>
 </div>
 <header><h1>SINISTER SICKS</h1><div class="small">GROUP ATTACK PRACTICE SIMULATOR</div></header>
 
@@ -92,7 +93,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 
 <div id="leaderLobbyControls" class="hidden">
 <button class="blue" onclick="beginReadyCheck()">CALL READY CHECK (15 SECONDS)</button>
-<button class="green" id="startButton" onclick="startBattle()" disabled>START PRACTICE</button>
+<button class="green" id="startButton" onclick="startBattle()" disabled>START MATCH</button>
 </div>
 <div id="memberLobbyControls"><button class="green" id="readyButton" onclick="setReady(true)">I'M READY</button></div>
 </section>
@@ -210,7 +211,7 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
  channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;bots=payload.bots||bots;game.started=true;readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");renderGame();$("battle").classList.remove("hidden");addLog("Practice round started.");});
  channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;bots=payload.bots||bots;$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");renderGame();addLog("Leader reset the practice round.");});
- channel.on("broadcast",{event:"battle-end"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||bots;game.started=false;readyCheckActive=false;clearInterval(readyTimer);renderGame();renderRoom();}});
+ channel.on("broadcast",{event:"battle-end"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||bots;game.started=false;readyCheckActive=false;clearInterval(readyTimer);renderGame();showBattleReport();renderRoom();}});
  channel.on("broadcast",{event:"settings"},({payload})=>{game.memberDeaths=payload.memberDeaths??payload.deaths??game.memberDeaths;game.botDeaths=payload.botDeaths??game.botDeaths;game.deaths=game.memberDeaths;game.opponent=payload.opponent||game.opponent;bots=payload.bots||bots;$("deathToggle").checked=!!game.memberDeaths;$("botDeathToggle").checked=!!game.botDeaths;renderGame();renderMembers();});
  channel.on("broadcast",{event:"bot-update"},({payload})=>{bots=payload.bots||[];renderMembers();renderBots();});
  channel.on("broadcast",{event:"state-request"},()=>{if(isLeader)sendGameState();});
@@ -248,9 +249,13 @@ function renderMembers(){
 function renderBots(){$("botList").textContent=bots.length?"Bots: "+bots.map(b=>b.name).join(", "):"No practice bots added.";}
 function allReady(){return members.length>0&&members.every(m=>m.ready&&!m.afk);}
 function updateReadyStatus(){
- if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can start.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready&&!m.afk).length+"/"+members.length+" ready.";if(isLeader)$("startButton").disabled=!allReady()||left<=0;}
- else{$("readyStatus").textContent=members.some(m=>m.afk)?"Ready check expired. AFK members must rejoin before another check.":"Waiting for the leader to call ready.";if(isLeader)$("startButton").disabled=true;}
+ const canStart=readyCheckActive&&isLeader&&allReady()&&Date.now()<readyDeadline;
+ if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can press START MATCH.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready&&!m.afk).length+"/"+members.length+" ready.";}
+ else{$("readyStatus").textContent=members.some(m=>m.afk)?"Ready check expired. AFK members must rejoin before another check.":"Waiting for the leader to call ready.";}
+ if($("startButton"))$("startButton").disabled=!canStart;
+ if($("readyPanelStartButton")){$("readyPanelStartButton").disabled=!canStart;$("readyPanelStartButton").classList.toggle("hidden",!canStart);}
 }
+
 function renderReadyPanel(){
  const panel=$("readyPanel");if(!panel)return;
  panel.classList.toggle("hidden",!readyCheckActive&&!members.some(m=>m.afk)&&!game.started);
@@ -261,6 +266,7 @@ function renderReadyPanel(){
  $("readyCountdown").textContent=readyCheckActive?left+" SECONDS":(members.some(m=>m.afk)?"CHECK EXPIRED":"READY CHECK");
  $("readyPanelButton").classList.toggle("hidden",!readyCheckActive||readyFlag||isLeader);
  $("readyPanelButton").textContent=readyFlag?"READY":"I'M READY";
+ const startReady=$("readyPanelStartButton");if(startReady){const canStart=readyCheckActive&&isLeader&&allReady()&&Date.now()<readyDeadline;startReady.classList.toggle("hidden",!canStart);startReady.disabled=!canStart;}
 }
 async function beginReadyCheck(){
  if(!isLeader||!channel)return;
@@ -273,7 +279,7 @@ async function beginReadyCheck(){
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
  readyOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline,readyOrder:readyOrder}});
  $("readyPanel").classList.remove("hidden");$("readyPanel").classList.add("ready-overlay");$("battleActionArea").classList.add("hidden");renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
-  if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();await startBattle();}
+  if(allReady()){updateReadyStatus();renderReadyPanel();}
   else if(Date.now()>=readyDeadline){
    readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);
    members.forEach(m=>m.afk=!m.ready);
