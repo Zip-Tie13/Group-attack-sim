@@ -249,7 +249,7 @@ function renderMembers(){
 function renderBots(){$("botList").textContent=bots.length?"Bots: "+bots.map(b=>b.name).join(", "):"No practice bots added.";}
 function allReady(){return members.length>0&&members.every(m=>m.ready&&!m.afk);}
 function updateReadyStatus(){
- const canStart=readyCheckActive&&isLeader&&allReady()&&Date.now()<readyDeadline;
+ const canStart=readyCheckActive&&isLeader&&allReady();
  if(readyCheckActive){const left=Math.max(0,Math.ceil((readyDeadline-Date.now())/1000));$("readyStatus").textContent=allReady()?"All members are READY. Leader can press START MATCH.":"Ready check: "+left+" seconds remaining. "+members.filter(m=>m.ready&&!m.afk).length+"/"+members.length+" ready.";}
  else{$("readyStatus").textContent=members.some(m=>m.afk)?"Ready check expired. AFK members must rejoin before another check.":"Waiting for the leader to call ready.";}
  if($("startButton"))$("startButton").disabled=!canStart;
@@ -266,7 +266,7 @@ function renderReadyPanel(){
  $("readyCountdown").textContent=readyCheckActive?left+" SECONDS":(members.some(m=>m.afk)?"CHECK EXPIRED":"READY CHECK");
  $("readyPanelButton").classList.toggle("hidden",!readyCheckActive||readyFlag||isLeader);
  $("readyPanelButton").textContent=readyFlag?"READY":"I'M READY";
- const startReady=$("readyPanelStartButton");if(startReady){const canStart=readyCheckActive&&isLeader&&allReady()&&Date.now()<readyDeadline;startReady.classList.toggle("hidden",!canStart);startReady.disabled=!canStart;}
+ const startReady=$("readyPanelStartButton");if(startReady){const canStart=readyCheckActive&&isLeader&&allReady();startReady.classList.toggle("hidden",!canStart);startReady.disabled=!canStart;}
 }
 async function beginReadyCheck(){
  if(!isLeader||!channel)return;
@@ -279,7 +279,7 @@ async function beginReadyCheck(){
  await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});
  readyOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline,readyOrder:readyOrder}});
  $("readyPanel").classList.remove("hidden");$("readyPanel").classList.add("ready-overlay");$("battleActionArea").classList.add("hidden");renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{
-  if(allReady()){updateReadyStatus();renderReadyPanel();}
+  if(allReady()){clearInterval(readyTimer);updateReadyStatus();renderReadyPanel();}
   else if(Date.now()>=readyDeadline){
    readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);
    members.forEach(m=>m.afk=!m.ready);
