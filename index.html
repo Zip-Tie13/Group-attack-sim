@@ -122,7 +122,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 </div>
 </section>
 
-<section class="panel wide attack-log-panel">
+<section id="attackLogPanel" class="panel wide attack-log-panel">
 <div class="attack-log-heading"><h2>Attack Log</h2><span id="participantCount" class="active-count-bubble">0 LEFT</span></div>
 <div id="log">Room battle ready.</div>
 <div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
@@ -131,10 +131,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <section id="battleReport" class="panel wide hidden battle-report-overlay">
 <div class="report-card">
 <div class="row"><h2>Battle Results</h2><span class="small">ROUND COMPLETE</span></div>
-<p class="small">Out-of-turn attacks are marked EARLY or LATE compared with each player's position in the ready order. Average time is the average gap between that participant's attacks.</p>
-<div id="reportSummary" class="small"></div>
-<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Player / Bot</th><th>Attacks</th><th>Out of turn</th><th>Average time</th></tr></thead><tbody id="reportRows"></tbody></table></div>
-<div id="outOfTurnDetails" class="small"></div>
+<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Player</th><th>Out of turn</th><th>Average attack time</th></tr></thead><tbody id="reportRows"></tbody></table></div>
 <div class="report-actions"><button class="blue" onclick="closeBattleReport()">CLOSE RESULTS</button></div>
 </div>
 </section>
@@ -277,6 +274,7 @@ async function beginReadyCheck(){
 }
 async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;const me=String(player.playerId||player.player_id);const mine=members.find(m=>String(m.playerId)===me);if(mine){mine.ready=value;mine.afk=false;}await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(me),ready:value}});syncMembers();updateReadyStatus();renderReadyPanel();}
 async function startBattle(){
+ $("attackLogPanel").classList.remove("hidden");
  botTurnToken++;
  if(!isLeader||!allReady())return;if(Date.now()>readyDeadline&&readyDeadline)return;
  game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,tempUsedBy:{},started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{}};
@@ -402,19 +400,17 @@ function renderGame(){
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
 function showBattleReport(){
  const rows=game.attacks||[];const participants=[...(members||[]).map(m=>({id:String(m.playerId),name:m.name||m.playerName||String(m.playerId)})),...(bots||[]).map(b=>({id:String(b.id),name:b.name||"Practice Bot"}))];
- const body=$("reportRows");body.innerHTML="";let totalOut=0;
+ const body=$("reportRows");body.innerHTML="";
  participants.forEach(person=>{
-  const mine=rows.filter(a=>String(a.actorId)===person.id);const out=mine.filter(a=>a.outOfTurn);totalOut+=out.length;
+  const mine=rows.filter(a=>String(a.actorId)===person.id);const out=mine.filter(a=>a.outOfTurn);
   const intervals=mine.slice(1).map(a=>Number(a.elapsed)||0);const avg=intervals.length?intervals.reduce((sum,n)=>sum+n,0)/intervals.length:0;
-  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+mine.length+"</td><td>"+(out.length?'<span class="report-flag">'+out.length+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(intervals.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
+  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+(out.length?'<span class="report-flag">'+out.length+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(intervals.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
  });
- $("reportSummary").textContent=rows.length+" total attacks · "+totalOut+" out-of-turn attacks · Round duration "+formatDuration(Math.max(0,Date.now()-(game.startedAt||Date.now())));
- const flagged=rows.filter(a=>a.outOfTurn);
- $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' used '+safeText(a.weapon)+' from current position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId||"—")+') to attack.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
+ $("attackLogPanel").classList.add("hidden");
  $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
 function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");}
-async function resetBattle(){if(!isLeader)return;botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
