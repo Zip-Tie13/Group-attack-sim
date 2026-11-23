@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function reply(data: unknown, status = 200) {
+function respond(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== "POST") {
-    return reply({ success: false, error: "POST requests only" }, 405);
+    return respond({ success: false, error: "POST requests only" }, 405);
   }
 
   try {
@@ -33,59 +33,102 @@ Deno.serve(async (req: Request) => {
       typeof apiKey !== "string" ||
       !/^[a-zA-Z0-9]{16}$/.test(apiKey)
     ) {
-      return reply({
+      return respond({
         success: false,
-        error: "Invalid Torn API key format",
+        error: "Invalid Torn API key format.",
       }, 400);
     }
 
-    const response = await fetch(
-      `https://api.torn.com/key/?selections=info&key=${encodeURIComponent(apiKey)}`
+    const encodedKey = encodeURIComponent(apiKey);
+
+    // Get the player's basic information.
+    const basicResponse = await fetch(
+      `https://api.torn.com/user/?selections=basic&key=${encodedKey}`
     );
 
-    const result = await response.json();
+    const basicData = await basicResponse.json();
 
-    if (!response.ok || result.error) {
-      return reply({
+    if (!basicResponse.ok || basicData.error) {
+      return respond({
         success: false,
-        error: result.error?.error || "Torn API verification failed",
+        error: basicData.error?.error || "Torn basic profile lookup failed.",
       }, 401);
     }
 
-    const user = result.user;
+    // Get faction membership from Torn's dedicated API v2 endpoint.
+    const factionResponse = await fetch(
+      `https://api.torn.com/v2/user/faction?key=${encodedKey}`
+    );
 
-    if (!user || !user.id) {
-      return reply({
+    const factionData = await factionResponse.json();
+
+    if (!factionResponse.ok || factionData.error) {
+      return respond({
         success: false,
-        error: "Torn did not return your account information.",
+        error:
+          factionData.error?.error ||
+          "Torn faction lookup failed. Check the API response.",
       }, 401);
     }
 
-    const factionId = Number(user.faction_id || 0);
+    // Support the faction object and its common response wrappers.
+    const faction =
+      factionData.faction ||
+      factionData.data?.faction ||
+      factionData.data ||
+      factionData;
 
-    if (factionId !== 57348) {
-      return reply({
+    const returnedFactionId = Number(
+      faction.id ??
+      faction.ID ??
+      faction.faction_id ??
+      faction.faction?.id ??
+      0
+    );
+
+    const playerId = basicData.player_id ?? basicData.player?.id;
+    const playerName = basicData.name ?? basicData.player?.name;
+
+    if (!playerId) {
+      return respond({
         success: false,
-        error: `Wrong faction. Torn returned faction ID: ${factionId}`,
-        playerId: user.id,
-        factionId,
+        error: "Torn did not return your player ID.",
+      }, 401);
+    }
+
+    if (!returnedFactionId) {
+      return respond({
+        success: false,
+        error: "Torn returned no faction ID.",
+        diagnostic: {
+          factionResponse: factionData,
+        },
       }, 403);
     }
 
-    return reply({
+    if (returnedFactionId !== 57348) {
+      return respond({
+        success: false,
+        error: `Faction ID mismatch. Torn returned ${returnedFactionId}; expected 57348.`,
+        playerId,
+        factionId: returnedFactionId,
+      }, 403);
+    }
+
+    return respond({
       success: true,
-      playerId: user.id,
-      playerName: user.name || "Torn member",
-      factionId,
+      playerId,
+      playerName: playerName || "SINISTER SICKS Member",
+      factionId: 57348,
       factionName: "SINISTER SICKS",
     });
+
   } catch (error) {
-    return reply({
+    return respond({
       success: false,
       error: error instanceof Error
         ? error.message
-        : "Unexpected login error",
+        : "Unexpected login error.",
     }, 500);
   }
 });
-
