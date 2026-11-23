@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
 
     // Torn's key-info endpoint may omit faction_id for some keys. Query the
     // dedicated user faction selection as a separate membership lookup.
-    const factionResponse = await fetch(`https://api.torn.com/v2/user/${playerId}/faction?key=${key}`);
+    const factionResponse = await fetch(`https://api.torn.com/v2/user/faction?key=${key}`);
     const factionData = await factionResponse.json().catch(() => ({}));
     const factionObject =
       factionData.faction ??
@@ -84,6 +84,8 @@ Deno.serve(async (req: Request) => {
       factionData.faction_id,
       factionData.faction?.faction_id,
       factionData.faction?.id,
+      factionData.faction?.ID,
+      factionData.faction_id,
       factionData.user?.faction_id,
       factionData.user?.faction?.faction_id,
       factionData.data?.faction_id,
