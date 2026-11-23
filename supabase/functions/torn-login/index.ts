@@ -1,14 +1,18 @@
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 function reply(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
   });
 }
 
@@ -25,44 +29,63 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const apiKey = body?.apiKey;
 
-    if (typeof apiKey !== "string" || !/^[a-f0-9]{16}$/i.test(apiKey)) {
-      return reply({ success: false, error: "Invalid Torn API key format" }, 400);
-    }
-
-    const tornResponse = await fetch(
-      `https://api.torn.com/user/?selections=basic,faction&key=${encodeURIComponent(apiKey)}`
-    );
-
-    const player = await tornResponse.json();
-
-    if (!tornResponse.ok || player.error) {
+    if (
+      typeof apiKey !== "string" ||
+      !/^[a-zA-Z0-9]{16}$/.test(apiKey)
+    ) {
       return reply({
         success: false,
-        error: player.error?.error || "Torn API login failed",
+        error: "Invalid Torn API key format",
+      }, 400);
+    }
+
+    const response = await fetch(
+      `https://api.torn.com/key/?selections=info&key=${encodeURIComponent(apiKey)}`
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      return reply({
+        success: false,
+        error: result.error?.error || "Torn API verification failed",
       }, 401);
     }
 
-    const factionId = Number(
-      player.faction?.faction_id ?? player.faction?.id ?? 0
-    );
+    const user = result.user;
+
+    if (!user || !user.id) {
+      return reply({
+        success: false,
+        error: "Torn did not return your account information.",
+      }, 401);
+    }
+
+    const factionId = Number(user.faction_id || 0);
 
     if (factionId !== 57348) {
       return reply({
         success: false,
-        error: "Your Torn account is not a member of SINISTER SICKS.",
+        error: `Wrong faction. Torn returned faction ID: ${factionId}`,
+        playerId: user.id,
+        factionId,
       }, 403);
     }
 
     return reply({
       success: true,
-      playerId: player.player_id,
-      playerName: player.name,
+      playerId: user.id,
+      playerName: user.name || "Torn member",
       factionId,
+      factionName: "SINISTER SICKS",
     });
   } catch (error) {
     return reply({
       success: false,
-      error: error instanceof Error ? error.message : "Login failed",
+      error: error instanceof Error
+        ? error.message
+        : "Unexpected login error",
     }, 500);
   }
 });
+
