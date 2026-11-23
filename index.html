@@ -340,7 +340,7 @@ function applyAttack(p,local){
  const outOfTurn=actualPosition!==expectedPosition;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expectedActor});
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actualPosition<expectedPosition?"EARLY":"LATE"):"",actualPosition:actualPosition,expectedPosition:expectedPosition,expectedTurnId:expected});
  game.lastAttackAt[actor]=at;
  if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — current position #"+(actorIndex+1)+"; expected position #"+expectedPosition+".":""))}
  else{
