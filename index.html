@@ -335,11 +335,9 @@ function advanceAttackTurn(wasCorrect){
     const candidate=String(all[(Math.max(-1,current)+step)%all.length]);
     if(!dead.has(candidate)){game.currentTurnId=candidate;break;}
   }
-  // First correct attacker leaves blue at 1; the second advances it to 2.
-  if(wasCorrect){
-    if(!game.firstCorrectAttackDone)game.firstCorrectAttackDone=true;
-    else game.attackNumber=(Number(game.attackNumber)||1)+1;
-  }
+  // Advance the blue counter immediately after every accepted attack.
+  // The display is capped at one less than the number of living participants.
+  game.attackNumber=(Number(game.attackNumber)||1)+1;
   updateTurnPosition();
 }
 function attack(weapon){
@@ -412,7 +410,7 @@ function runBotTurns(){
  const strength=Math.max(1,Number(game.opponent?.strength)||500);
  const retaliation=Math.max(1,Math.round((strength/18)*(0.70+Math.random()*0.48)));
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
- const delay=350+Math.floor(Math.random()*601);
+ const delay=440+Math.floor(Math.random()*751);
  setTimeout(()=>{
   if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
