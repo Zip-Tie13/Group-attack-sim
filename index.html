@@ -82,6 +82,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <section id="battle" class="hidden">
 <div class="battlegrid">
 <section class="panel wide">
+<div id="battleActionArea">
 <div class="row"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 1000 / 1000</div></div><button class="gray" onclick="resetBattle()">RESET</button></div>
 <h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
@@ -96,6 +97,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 </div>
 <div id="battleNotice" class="status"></div>
 <p class="small">Tap a weapon picture to attack. All damage is simulated; no real Torn energy, weapons, or items are used.</p>
+</div>
 </section>
 
 <section class="panel wide attack-log-panel">
@@ -156,6 +158,7 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"ready-check"},({payload})=>{readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;readyFlag=false;trackPresence();renderRoom();clearInterval(readyTimer);if(readyCheckActive)readyTimer=setInterval(updateReadyStatus,250);});
  channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m)m.ready=!!payload.ready;renderMembers();});
  channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();renderRoom();}});
+ channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
  channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;game.started=true;renderGame();$("battle").classList.remove("hidden");addLog("Practice round started by the leader.");});
  channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;renderGame();addLog("Leader reset the practice round.");});
@@ -234,7 +237,6 @@ function advanceAttackTurn(){
 }
 function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
- if(String(game.currentTurnId)!==me){$("battleNotice").textContent="Wait for your turn. It is "+(members.find(m=>String(m.playerId)===String(game.currentTurnId))?.name||bots.find(b=>String(b.id)===String(game.currentTurnId))?.name||"another participant")+"'s turn.";return;}
  if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)/100));
@@ -243,18 +245,16 @@ function attack(weapon){
 }
 function flashbang(){
  if(!game.started||game.flashUsed||spectating)return;const me=String(player.playerId||player.player_id);
- if(String(game.currentTurnId)!==me){$("battleNotice").textContent="Wait for your turn.";return;}
+ if(game.deaths&&(game.playerHp[me]||1000)<=0)return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function applyAttack(p,local){
  if(!p||!game.started)return;
- const actor=String(p.actorId||p.playerId||"");
- if(actor!==String(game.currentTurnId))return;
  if(p.weapon==="Flashbang"){game.flashUsed=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
  else{
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
-  if(game.deaths&&!p.isBot){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}
+  if(game.deaths&&!p.isBot){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");
  }
  advanceAttackTurn();renderGame();
@@ -271,13 +271,22 @@ function runBotTurns(){
 }
 function renderGame(){
  $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";updateTurnPosition();
- const me=String(player.playerId||player.player_id);$("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
- $("battleNotice").textContent=spectating?"You are watching this round.":(game.deaths&&game.dead&&game.dead.includes(me)?"You are knocked out. Rejoin or watch.":"");
- $("tempButton").disabled=!!game.flashUsed;$("deathActions").classList.toggle("hidden",!(game.deaths&&game.dead&&game.dead.includes(me)));
+ const me=String(player.playerId||player.player_id);const knockedOut=!!(game.deaths&&game.dead&&game.dead.map(String).includes(me));
+ $("myHealth").textContent="Your HP: "+(game.playerHp[me]??1000)+" / 1000";
+ $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
+ $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":"");
+ $("tempButton").disabled=!!game.flashUsed||spectating||knockedOut;
+ $("deathActions").classList.toggle("hidden",!knockedOut||spectating);
 }
 async function resetBattle(){if(!isLeader)return;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.started=true;game.dead=[];game.playerHp={};game.turnOrder=[...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))];game.currentTurnId=game.turnOrder[0]||"";members.forEach(m=>game.playerHp[String(m.playerId)]=1000);await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game}});renderGame();addLog("Leader reset the practice battle.");}
-async function rejoinBattle(){const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>x!==me);spectating=false;$("deathActions").classList.add("hidden");renderGame();if(isLeader)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});else await channel.send({type:"broadcast",event:"state-request",payload:{}});addLog(player.playerName+" rejoined the practice round.");}
-function watchBattle(){spectating=true;$("deathActions").classList.add("hidden");renderGame();addLog(player.playerName+" is watching the practice round.");}
+async function rejoinBattle(){
+ const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
+ renderGame();addLog(player.playerName+" rejoined the practice round.");
+ if(channel){await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});await channel.send({type:"broadcast",event:"system-log",payload:{message:player.playerName+" rejoined the practice round."}});}
+}
+function watchBattle(){
+ spectating=true;renderGame();addLog(player.playerName+" is watching the practice round.");
+}
 function appendChat(name,message){const line=document.createElement("div");line.textContent=name+": "+message;$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;}
 async function sendChat(){const input=$("chatMessage"),message=input.value.trim();if(!message||!channel)return;input.value="";appendChat(player.playerName,message);await channel.send({type:"broadcast",event:"chat",payload:{name:player.playerName,message:message}});}
 function toggleChat(){$("chatWindow").classList.toggle("hidden");}
