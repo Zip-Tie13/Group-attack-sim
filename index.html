@@ -191,8 +191,8 @@ function updateReadyStatus(){
  else{$("readyStatus").textContent="Waiting for the leader to call ready.";if(isLeader)$("startButton").disabled=true;}
 }
 async function beginReadyCheck(){
- if(!isLeader||!channel)return;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=false;
- members.forEach(m=>m.ready=false);await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
+ if(!isLeader||!channel)return;readyCheckActive=true;readyDeadline=Date.now()+15000;readyFlag=true;
+ members.forEach(m=>m.ready=Number(m.playerId)===Number(leaderId));await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(leaderId),ready:true}});await channel.send({type:"broadcast",event:"ready-check",payload:{active:true,deadline:readyDeadline}});
  renderRoom();clearInterval(readyTimer);readyTimer=setInterval(async()=>{if(allReady()){clearInterval(readyTimer);updateReadyStatus();}else if(Date.now()>=readyDeadline){readyCheckActive=false;readyFlag=false;clearInterval(readyTimer);await trackPresence();await channel.send({type:"broadcast",event:"ready-check",payload:{active:false,deadline:0}});$("readyStatus").textContent="Ready check expired. Leader must call ready check again.";updateReadyStatus();}else updateReadyStatus();},250);
 }
 async function setReady(value){if(!channel||!readyCheckActive)return;readyFlag=value;await trackPresence();await channel.send({type:"broadcast",event:"ready-state",payload:{playerId:Number(player.playerId||player.player_id),ready:value}});syncMembers();updateReadyStatus();}
