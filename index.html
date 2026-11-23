@@ -222,10 +222,13 @@ function attack(weapon){
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
 function flashbang(){if(!game.started||game.flashUsed||spectating)return;game.flashUsed=true;const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(player.playerId||player.player_id),name:player.playerName};applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});}
+function attackTurnCount(){return Math.max(1,members.length+bots.length);}
+function advanceAttackTurn(){const total=attackTurnCount();game.attackNumber=(Number(game.attackNumber||1)%total)+1;}
 function applyAttack(p,local){
  if(!p||!game.started)return;
+ advanceAttackTurn();
  if(p.weapon==="Flashbang"){game.flashUsed=true;$("tempButton").disabled=true;addLog(p.name+" used a flashbang. Target dexterity reduced by 50% for this round.");}
- else{game.hp=Math.max(0,game.hp-(Number(p.damage)||0));game.attackNumber++;if(game.deaths){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");}
+ else{game.hp=Math.max(0,game.hp-(Number(p.damage)||0));if(game.deaths){const id=String(p.playerId);game.playerHp[id]=Math.max(0,(game.playerHp[id]??1000)-(Number(p.retaliation)||0));if(game.playerHp[id]===0){game.dead=game.dead||[];if(!game.dead.includes(id))game.dead.push(id);if(id===String(player.playerId||player.player_id))$("deathActions").classList.remove("hidden");}}addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage.");}
  renderGame();if(game.hp===0){game.started=false;addLog("Training target defeated!");}
 }
 function renderGame(){
