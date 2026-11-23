@@ -23,15 +23,13 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     const apiKey = body?.apiKey;
 
-    // Torn API keys are 16 characters. Never return or log the submitted key.
     if (typeof apiKey !== "string" || !/^[a-zA-Z0-9]{16}$/.test(apiKey)) {
       return respond({ success: false, error: "Enter a valid 16-character Torn API key." }, 400);
     }
 
     const key = encodeURIComponent(apiKey);
 
-    // Torn documents /v2/key/info as the endpoint that exposes the key owner's
-    // user.faction_id, even when the key does not have faction AA permissions.
+    // Key info confirms the key and supplies the owner's ID and faction details.
     const infoResponse = await fetch(`https://api.torn.com/v2/key/info?key=${key}`);
     const info = await infoResponse.json();
 
@@ -43,20 +41,58 @@ Deno.serve(async (req: Request) => {
       }, 401);
     }
 
-    const userInfo = info.user ?? info.data?.user ?? {};
-    const factionId = Number(userInfo.faction_id ?? info.access?.faction_id ?? 0);
-    const playerId = userInfo.id ?? userInfo.player_id ?? info.player_id ?? null;
+    // Also request the owner's basic profile. The v1 response uses player_id;
+    // this is a reliable fallback if the key-info response shape differs.
+    const basicResponse = await fetch(`https://api.torn.com/user/?selections=basic&key=${key}`);
+    const basic = await basicResponse.json();
 
-    if (!playerId) {
-      return respond({ success: false, error: "Torn accepted the key but did not return the player ID." }, 502);
+    if (!basicResponse.ok || basic.error) {
+      return respond({
+        success: false,
+        error: basic.error?.error || basic.error?.message || "Torn accepted the key, but could not load the basic player profile.",
+        tornErrorCode: basic.error?.code ?? null,
+      }, 502);
+    }
+
+    const userInfo = info.user ?? info.data?.user ?? info.data ?? {};
+    const playerId = Number(
+      userInfo.id ??
+      userInfo.user_id ??
+      userInfo.player_id ??
+      info.user_id ??
+      info.player_id ??
+      basic.player_id ??
+      basic.user_id ??
+      basic.ID ??
+      basic.id ??
+      0
+    );
+
+    const factionId = Number(
+      userInfo.faction_id ??
+      info.faction_id ??
+      basic.faction?.faction_id ??
+      basic.faction_id ??
+      0
+    );
+
+    const playerName =
+      (typeof basic.name === "string" && basic.name) ||
+      (typeof userInfo.name === "string" && userInfo.name) ||
+      "SINISTER SICKS Member";
+
+    if (!Number.isFinite(playerId) || playerId <= 0) {
+      return respond({
+        success: false,
+        error: "Torn accepted the key, but its basic profile response did not contain a player ID. Please tell the simulator administrator this exact message.",
+      }, 502);
     }
 
     if (!factionId) {
       return respond({
         success: false,
-        error: "Torn reports that this account is not currently in a faction.",
+        error: "Torn returned your player ID but no faction ID. The key may not expose faction membership through this response.",
         playerId,
-        factionId: 0,
       }, 403);
     }
 
@@ -67,14 +103,6 @@ Deno.serve(async (req: Request) => {
         playerId,
         factionId,
       }, 403);
-    }
-
-    // Get the player's display name separately; this is a basic user lookup.
-    let playerName = "SINISTER SICKS Member";
-    const basicResponse = await fetch(`https://api.torn.com/user/?selections=basic&key=${key}`);
-    const basic = await basicResponse.json();
-    if (basicResponse.ok && !basic.error && typeof basic.name === "string") {
-      playerName = basic.name;
     }
 
     return respond({
