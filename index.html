@@ -329,11 +329,14 @@ function applyAttack(p,local){
  game.tempUsedBy=game.tempUsedBy||{};if(p.weapon==="Flashbang"&&game.tempUsedBy[actor])return;if(p.weapon==="Flashbang")game.tempUsedBy[actor]=true;const expected=String(p.expectedTurnId||game.currentTurnId||"");const at=Number(p.attackAt)||Date.now();
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
- const order=game.turnOrder||[];const actorIndex=order.indexOf(actor);const expectedIndex=order.indexOf(expected);
- const outOfTurn=!!(expected&&actor!==expected);
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&expectedIndex>=0&&actorIndex<expectedIndex?"EARLY":"LATE"):"",actualPosition:actorIndex+1,expectedPosition:expectedIndex+1,expectedTurnId:expected});
+ const activeOrder=activeTurnOrder();
+ const actorIndex=activeOrder.indexOf(actor);
+ const expectedPosition=activeOrder.length>1?activeOrder.length-1:(activeOrder.length?1:0);
+ const expectedActor=expectedPosition?String(activeOrder[expectedPosition-1]||""):"";
+ const outOfTurn=!!(expectedActor&&actor!==expectedActor);
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&actorIndex<expectedPosition-1?"EARLY":"LATE"):"",actualPosition:actorIndex+1,expectedPosition:expectedPosition,expectedTurnId:expectedActor});
  game.lastAttackAt[actor]=at;
- if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);const order=game.turnOrder||[];const expectedPosition=order.indexOf(expected)+1;const actualPosition=order.indexOf(actor)+1;addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — ready-menu position #"+actualPosition+"; expected position #"+expectedPosition+".":""));}
+ if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — current position #"+(actorIndex+1)+"; expected position #"+expectedPosition+".":""))}
  else{
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
   const actorHpId=String(p.actorId||p.playerId||"");
@@ -399,7 +402,7 @@ function showBattleReport(){
  });
  $("reportSummary").textContent=rows.length+" total attacks · "+totalOut+" out-of-turn attacks · Round duration "+formatDuration(Math.max(0,Date.now()-(game.startedAt||Date.now())));
  const flagged=rows.filter(a=>a.outOfTurn);
- $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' used '+safeText(a.weapon)+' from ready-menu position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId||"—")+') to attack.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
+ $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' used '+safeText(a.weapon)+' from current position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId||"—")+') to attack.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
  $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
 function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");}
