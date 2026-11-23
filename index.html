@@ -21,6 +21,16 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .weapon{background:#252e3b;border:1px solid #465266;padding:12px;border-radius:8px}.weapon button{width:100%;margin:7px 0 0}
 .opponent{display:flex;align-items:center;justify-content:space-between;gap:12px}.person{font-size:54px}
 .bubble{background:#1767ad;border-radius:50%;padding:10px 14px;font-weight:bold}
+.arena{display:grid;grid-template-columns:minmax(0,1fr) 86px;gap:10px;align-items:stretch;min-height:290px;margin:10px 0}
+.fighter-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:290px;border:1px solid #354253;border-radius:12px;background:radial-gradient(ellipse at 50% 65%,#354253 0,#1a222d 55%,#111720 100%);overflow:hidden}
+.fighter{font-size:clamp(145px,34vw,245px);line-height:1;filter:drop-shadow(0 8px 5px #0008);transform:scaleX(.9)}
+.fighter-number{position:absolute;top:12px;right:12px}
+.weapon-dock{display:flex;flex-direction:column;justify-content:center;gap:9px}
+.weapon-pic{width:100%;min-height:62px;margin:0;padding:5px 2px;border:1px solid #526176;border-radius:10px;background:linear-gradient(145deg,#303d4e,#1a222d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.weapon-pic .weapon-icon{font-size:32px;line-height:1.1}
+.weapon-pic .weapon-label{font-size:9px;color:#dce5f1;letter-spacing:.3px}
+.weapon-pic:active{transform:scale(.96)}
+@media(max-width:420px){.arena{grid-template-columns:minmax(0,1fr) 76px;min-height:260px}.fighter-stage{min-height:260px}.fighter{font-size:clamp(145px,43vw,205px)}.weapon-pic{min-height:58px}.weapon-pic .weapon-icon{font-size:29px}}
 .health{height:14px;background:#444;border-radius:10px;overflow:hidden;margin:10px 0}.health div{height:100%;width:100%;background:#36a45b}
 #log{height:150px;overflow:auto;background:#0c1016;padding:10px;border-radius:6px;font-size:13px}
 .member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
@@ -71,22 +81,20 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <section id="battle" class="hidden">
 <div class="battlegrid">
 <section class="panel wide">
-<div class="opponent"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 1000 / 1000</div></div><div class="person">🧍 <span class="bubble" id="attackNumber">1</span></div></div>
-<h2>Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
+<div class="row"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 1000 / 1000</div></div><button class="gray" onclick="resetBattle()">RESET</button></div>
+<h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
-<div id="battleNotice" class="status"></div>
-<button class="gray" onclick="resetBattle()">RESET PRACTICE BATTLE</button>
-</section>
-
-<section class="panel">
-<h2>Weapons</h2>
-<div class="weapons">
-<div class="weapon"><strong>🔫 Primary Weapon</strong><p class="small">Rifle — 3 practice rounds</p><button onclick="attack('Rifle')">FIRE RIFLE</button></div>
-<div class="weapon"><strong>🔫 Secondary Weapon</strong><p class="small">Pistol — 10 practice rounds</p><button onclick="attack('Pistol')">FIRE PISTOL</button></div>
-<div class="weapon"><strong>🔪 Melee</strong><p class="small">Knife — practice use</p><button onclick="attack('Knife')">USE KNIFE</button></div>
-<div class="weapon"><strong>💥 Temporary</strong><p class="small">Flashbang — reduces target dexterity by 50% for this round</p><button id="tempButton" onclick="flashbang()">THROW FLASHBANG</button></div>
+<div class="arena">
+ <div class="fighter-stage"><div class="fighter" role="img" aria-label="Practice fighter">🧍</div><span class="bubble fighter-number" id="attackNumber">1</span></div>
+ <div class="weapon-dock" aria-label="Practice weapons">
+  <button class="weapon-pic" aria-label="Fire rifle, primary weapon" title="Primary: Rifle" onclick="attack('Rifle')"><span class="weapon-icon">🔫</span><span class="weapon-label">PRIMARY</span></button>
+  <button class="weapon-pic" aria-label="Fire pistol, secondary weapon" title="Secondary: Pistol" onclick="attack('Pistol')"><span class="weapon-icon">🔫</span><span class="weapon-label">SECONDARY</span></button>
+  <button class="weapon-pic" aria-label="Use knife, melee" title="Melee: Knife" onclick="attack('Knife')"><span class="weapon-icon">🔪</span><span class="weapon-label">MELEE</span></button>
+  <button class="weapon-pic" id="tempButton" aria-label="Throw flashbang, temporary weapon" title="Temporary: Flashbang" onclick="flashbang()"><span class="weapon-icon">💥</span><span class="weapon-label">TEMP</span></button>
+ </div>
 </div>
-<p class="small">All attacks and damage are simulated. No real Torn energy, weapons, or items are used.</p>
+<div id="battleNotice" class="status"></div>
+<p class="small">Tap a weapon picture to attack. All damage is simulated; no real Torn energy, weapons, or items are used.</p>
 </section>
 
 <section class="panel">
