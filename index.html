@@ -43,8 +43,8 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
 .ready{color:#7de39a;font-weight:bold}.notready{color:#e8b85b}.dead{color:#ff7777}
 .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.statgrid label{font-size:12px;color:#aab4c3}
-#chatPopup{position:fixed;bottom:10px;right:10px;z-index:10;border-radius:25px;padding:13px 18px}
-#chatWindow{position:fixed;bottom:66px;right:10px;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
+#chatPopup{position:fixed;bottom:10px;left:10px;right:auto;z-index:10;border-radius:25px;padding:13px 18px}
+#chatWindow{position:fixed;bottom:66px;left:10px;right:auto;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
 @media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}\n.attack-log-panel{grid-column:1/-1!important;margin-top:0}.attack-log-panel #log{height:125px;min-height:125px;overflow-y:auto;scroll-behavior:smooth}
@@ -290,10 +290,14 @@ function updateTurnPosition(){
  $("participantCount").textContent=active.length+" LEFT";
 }
 function advanceAttackTurn(){
- const order=activeTurnOrder();if(!order.length){game.currentTurnId="";updateTurnPosition();return;}
- const current=order.indexOf(String(game.currentTurnId));
- game.currentTurnId=order[current<0?0:(current+1)%order.length];
- updateTurnPosition();
+ const all=game.turnOrder||[],dead=new Set((game.dead||[]).map(String));
+ if(!all.length){game.currentTurnId="";updateTurnPosition();return;}
+ const current=all.indexOf(String(game.currentTurnId));
+ for(let step=1;step<=all.length;step++){
+  const candidate=String(all[(Math.max(-1,current)+step)%all.length]);
+  if(!dead.has(candidate)){game.currentTurnId=candidate;updateTurnPosition();return;}
+ }
+ game.currentTurnId="";updateTurnPosition();
 }
 function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
