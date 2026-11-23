@@ -52,7 +52,8 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .attack-log-heading h2{margin:0}
 .active-count-bubble{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:7px 11px;border-radius:999px;background:#facc15;color:#241b00;border:2px solid #fde68a;font-size:12px;font-weight:900;letter-spacing:.4px;white-space:nowrap;box-shadow:0 2px 8px #0006}
 
-.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyPanel.ready-overlay{position:fixed;inset:0;z-index:2147483647;margin:0!important;padding:22px 16px;background:rgba(5,9,15,.98);border:0;border-radius:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;display:flex!important;flex-direction:column;justify-content:center;align-items:stretch;overflow-y:auto;overscroll-behavior:contain}#readyPanel.ready-overlay h2{text-align:center;font-size:24px}#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
+.report-table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid #344255;text-align:left;white-space:nowrap}.report-table th{color:#9fc8f5}.report-flag{color:#ffbf69;font-weight:bold}.report-clean{color:#75d69b}
+#battleReport.battle-report-overlay{position:fixed!important;inset:0!important;z-index:2147483646!important;margin:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;background:rgba(5,9,15,.985)!important;overflow-y:auto!important;padding:18px!important;display:flex!important;flex-direction:column;justify-content:center;align-items:center}#battleReport .report-card{width:100%;max-width:760px;margin:auto;background:#1c222c;border:1px solid #526176;border-radius:12px;padding:16px;box-shadow:0 12px 40px #0009}#battleReport .report-actions{display:flex;justify-content:flex-end;margin-top:14px}#battleReport .report-actions button{min-width:140px}\n#readyPanel{margin-top:12px;border:1px solid #526176}#readyPanel.ready-overlay{position:fixed;inset:0;z-index:2147483647;margin:0!important;padding:22px 16px;background:rgba(5,9,15,.98);border:0;border-radius:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;display:flex!important;flex-direction:column;justify-content:center;align-items:stretch;overflow-y:auto;overscroll-behavior:contain}#readyPanel.ready-overlay h2{text-align:center;font-size:24px}#readyPanel.ready-overlay #readyRoster{width:100%;max-width:520px;margin:12px auto}#readyPanel.ready-overlay #readyPanelButton{width:100%;max-width:520px;margin:8px auto 0;min-height:52px;font-size:17px}#readyCountdown{font-size:24px;font-weight:800;text-align:center;color:#9fc8f5;padding:8px}#readyRoster .member{display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #344255}.afk{color:#ffad66;font-weight:bold}.ready{color:#73d69a;font-weight:bold}\n</style>
 </head>
 <body>
 <div id="readyPanel" class="panel hidden">
@@ -127,12 +128,15 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <div id="deathActions" class="hidden"><p class="dead">You were knocked out in this practice round.</p><button class="green" onclick="rejoinBattle()">REJOIN</button><button class="gray" onclick="watchBattle()">WATCH</button></div>
 </section>
 
-<section id="battleReport" class="panel wide hidden">
-<h2>Battle Results</h2>
-<p class="small">Out-of-turn attacks are marked EARLY or LATE compared with the attack position displayed when the attack was made. Average time is measured between each participant's attacks (first attack measured from round start).</p>
+<section id="battleReport" class="panel wide hidden battle-report-overlay">
+<div class="report-card">
+<div class="row"><h2>Battle Results</h2><span class="small">ROUND COMPLETE</span></div>
+<p class="small">Out-of-turn attacks are marked EARLY or LATE compared with each player's position in the ready order. Average time is the average gap between that participant's attacks.</p>
 <div id="reportSummary" class="small"></div>
 <div class="report-table-wrap"><table class="report-table"><thead><tr><th>Player / Bot</th><th>Attacks</th><th>Out of turn</th><th>Average time</th></tr></thead><tbody id="reportRows"></tbody></table></div>
 <div id="outOfTurnDetails" class="small"></div>
+<div class="report-actions"><button class="blue" onclick="closeBattleReport()">CLOSE RESULTS</button></div>
+</div>
 </section>
 
 </div>
@@ -201,7 +205,7 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
  channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;bots=payload.bots||bots;game.started=true;readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");renderGame();$("battle").classList.remove("hidden");addLog("Practice round started.");});
- channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;bots=payload.bots||bots;renderGame();addLog("Leader reset the practice round.");});
+ channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;bots=payload.bots||bots;$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");renderGame();addLog("Leader reset the practice round.");});
  channel.on("broadcast",{event:"settings"},({payload})=>{game.memberDeaths=payload.memberDeaths??payload.deaths??game.memberDeaths;game.botDeaths=payload.botDeaths??game.botDeaths;game.deaths=game.memberDeaths;game.opponent=payload.opponent||game.opponent;bots=payload.bots||bots;$("deathToggle").checked=!!game.memberDeaths;$("botDeathToggle").checked=!!game.botDeaths;renderGame();renderMembers();});
  channel.on("broadcast",{event:"bot-update"},({payload})=>{bots=payload.bots||[];renderMembers();renderBots();});
  channel.on("broadcast",{event:"state-request"},()=>{if(isLeader)sendGameState();});
@@ -327,7 +331,7 @@ function applyAttack(p,local){
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const order=game.turnOrder||[];const actorIndex=order.indexOf(actor);const expectedIndex=order.indexOf(expected);
  const outOfTurn=!!(expected&&actor!==expected);
- game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&expectedIndex>=0&&actorIndex<expectedIndex?"EARLY":"LATE"):""});
+ game.attacks.push({actorId:actor,name:p.name||actor,weapon:p.weapon,at:at,elapsed:elapsed,outOfTurn:outOfTurn,kind:outOfTurn?(actorIndex>=0&&expectedIndex>=0&&actorIndex<expectedIndex?"EARLY":"LATE"):"",actualPosition:actorIndex+1,expectedPosition:expectedIndex+1,expectedTurnId:expected});
  game.lastAttackAt[actor]=at;
  if(p.weapon==="Flashbang"){game.tempThrows=Number(game.tempThrows||0)+1;game.opponent=game.opponent||{};game.opponent.dex=Math.max(0,Number(game.opponent.dex||0)*0.5);const order=game.turnOrder||[];const expectedPosition=order.indexOf(expected)+1;const actualPosition=order.indexOf(actor)+1;addLog(p.name+" threw a temp. Opponent dexterity was reduced by 50%."+(outOfTurn?" OUT OF TURN — ready-menu position #"+actualPosition+"; expected position #"+expectedPosition+".":""));}
  else{
@@ -387,19 +391,19 @@ function renderGame(){
 function formatDuration(ms){const seconds=ms/1000;if(seconds<60)return seconds.toFixed(1)+"s";const mins=Math.floor(seconds/60);return mins+"m "+(seconds%60).toFixed(0)+"s";}
 function showBattleReport(){
  const rows=game.attacks||[];const participants=[...(members||[]).map(m=>({id:String(m.playerId),name:m.name||m.playerName||String(m.playerId)})),...(bots||[]).map(b=>({id:String(b.id),name:b.name||"Practice Bot"}))];
- const body=$("reportRows");body.innerHTML="";
- let totalOut=0;
+ const body=$("reportRows");body.innerHTML="";let totalOut=0;
  participants.forEach(person=>{
   const mine=rows.filter(a=>String(a.actorId)===person.id);const out=mine.filter(a=>a.outOfTurn);totalOut+=out.length;
-  const avg=mine.length?mine.reduce((sum,a)=>sum+(Number(a.elapsed)||0),0)/mine.length:0;
-  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+mine.length+"</td><td>"+(out.length?'<span class="report-flag">'+out.length+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(mine.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
+  const intervals=mine.slice(1).map(a=>Number(a.elapsed)||0);const avg=intervals.length?intervals.reduce((sum,n)=>sum+n,0)/intervals.length:0;
+  const tr=document.createElement("tr");tr.innerHTML="<td>"+safeText(person.name)+"</td><td>"+mine.length+"</td><td>"+(out.length?'<span class="report-flag">'+out.length+'</span>':'<span class="report-clean">0</span>')+"</td><td>"+(intervals.length?formatDuration(avg):"—")+"</td>";body.appendChild(tr);
  });
  $("reportSummary").textContent=rows.length+" total attacks · "+totalOut+" out-of-turn attacks · Round duration "+formatDuration(Math.max(0,Date.now()-(game.startedAt||Date.now())));
  const flagged=rows.filter(a=>a.outOfTurn);
- $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' threw '+safeText(a.weapon)+' from ready-menu position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId)+') to attack. This shows what they threw and where they were in the ready order.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
- $("battleReport").classList.remove("hidden");
+ $("outOfTurnDetails").innerHTML=flagged.length?"<h3>Out-of-turn attack details</h3>"+flagged.map(a=>'<div><span class="report-flag">'+safeText(a.kind)+'</span> — '+safeText(a.name)+' used '+safeText(a.weapon)+' from ready-menu position #'+safeText(a.actualPosition||"—")+'; expected attacker #'+safeText(a.expectedPosition||"—")+' ('+safeText(a.expectedTurnId||"—")+') to attack.</div>').join(""):"<p class='report-clean'>No out-of-turn attacks recorded.</p>";
+ $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
-async function resetBattle(){if(!isLeader)return;botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");}
+async function resetBattle(){if(!isLeader)return;botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.flashUsed=false;game.tempUsedBy={};game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set([...(readyOrder.length?readyOrder:members.map(m=>String(m.playerId))),...members.map(m=>String(m.playerId)),...bots.map(b=>String(b.id))])];game.currentTurnId=game.turnOrder[0]||"";game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=1000);prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
 async function rejoinBattle(){
  const me=String(player.playerId||player.player_id);game.playerHp[me]=1000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
