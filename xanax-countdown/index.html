@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#100d0d">
+<title>SINISTER SICKS | Xanax War Countdown</title>
+<style>
+:root{color-scheme:dark;--red:#e32636;--red2:#8d101c;--panel:#191516;--muted:#b8aeb0}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#351015 0,#100d0d 55%,#080808 100%);color:#f7f2f2;font:16px/1.45 Arial,Helvetica,sans-serif;min-height:100vh;padding:24px 14px}
+.wrap{max-width:850px;margin:auto}
+header{text-align:center;padding:20px 12px 24px}
+.kicker{letter-spacing:.32em;color:#ff6873;font-weight:800;font-size:12px}
+h1{margin:9px 0 3px;font-size:clamp(32px,8vw,58px);line-height:1;color:#fff;text-shadow:0 0 22px #d51d32}
+.sub{color:#d5c8ca;margin:12px 0 0}
+.panel{background:linear-gradient(145deg,#211b1d,#100e0f);border:1px solid #6e2029;border-radius:15px;padding:20px;margin:14px 0;box-shadow:0 12px 35px #0008}
+h2{margin:0 0 12px;color:#ff5362;font-size:18px;letter-spacing:.08em}
+.count{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:14px 0}
+.unit{background:#090909;border:1px solid #4b252a;border-radius:10px;padding:12px 5px;text-align:center}
+.num{display:block;font-size:clamp(25px,6vw,42px);font-weight:800;font-variant-numeric:tabular-nums;color:#fff}
+.lbl{font-size:10px;letter-spacing:.16em;color:#ff7580}
+.war .num{color:#ff5362}
+.doses{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.dose{background:#0c0b0b;border:1px solid #48242a;border-radius:11px;padding:14px}
+.dosehead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:7px}
+.dosename{font-weight:800;color:#fff}
+.when{font-size:12px;color:var(--muted)}
+.status{font-size:11px;color:#ff8992;text-transform:uppercase;letter-spacing:.08em}
+.small{font-size:12px;color:var(--muted);text-align:center;margin:14px 0 0}
+.rule{height:1px;background:linear-gradient(90deg,transparent,#8d2631,transparent);margin:17px 0}
+footer{text-align:center;color:#9c8f92;font-size:11px;padding:12px}
+@media(max-width:520px){.doses{grid-template-columns:1fr}.panel{padding:15px}.count{gap:5px}.unit{padding:10px 2px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+<div class="kicker">FACTION WAR PREPARATION</div>
+<h1>SINISTER SICKS</h1>
+<p class="sub">FOUR-XANAX COUNTDOWN • TORN SERVER TIME (UTC)</p>
+</header>
+<section class="panel war">
+<h2>TIME UNTIL WAR</h2>
+<div class="count" id="war-count">
+<div class="unit"><span class="num" id="war-days">--</span><span class="lbl">DAYS</span></div>
+<div class="unit"><span class="num" id="war-hours">--</span><span class="lbl">HOURS</span></div>
+<div class="unit"><span class="num" id="war-minutes">--</span><span class="lbl">MINUTES</span></div>
+<div class="unit"><span class="num" id="war-seconds">--</span><span class="lbl">SECONDS</span></div>
+</div>
+<p class="small">WAR START: NOVEMBER 28, 2026 • 15:48 UTC</p>
+</section>
+<section class="panel">
+<h2>XANAX DOSE COUNTDOWNS</h2>
+<div class="doses" id="doses">
+<div class="dose" data-time="2026-11-27T03:48:00Z"><div class="dosehead"><span class="dosename">DOSE 1</span><span class="status">Loading</span></div><div class="when">NOV 27 • 03:48 UTC</div><div class="count"><div class="unit"><span class="num d">--</span><span class="lbl">DAYS</span></div><div class="unit"><span class="num h">--</span><span class="lbl">HRS</span></div><div class="unit"><span class="num m">--</span><span class="lbl">MIN</span></div><div class="unit"><span class="num s">--</span><span class="lbl">SEC</span></div></div></div>
+<div class="dose" data-time="2026-11-27T11:48:00Z"><div class="dosehead"><span class="dosename">DOSE 2</span><span class="status">Loading</span></div><div class="when">NOV 27 • 11:48 UTC</div><div class="count"><div class="unit"><span class="num d">--</span><span class="lbl">DAYS</span></div><div class="unit"><span class="num h">--</span><span class="lbl">HRS</span></div><div class="unit"><span class="num m">--</span><span class="lbl">MIN</span></div><div class="unit"><span class="num s">--</span><span class="lbl">SEC</span></div></div></div>
+<div class="dose" data-time="2026-11-27T19:48:00Z"><div class="dosehead"><span class="dosename">DOSE 3</span><span class="status">Loading</span></div><div class="when">NOV 27 • 19:48 UTC</div><div class="count"><div class="unit"><span class="num d">--</span><span class="lbl">DAYS</span></div><div class="unit"><span class="num h">--</span><span class="lbl">HRS</span></div><div class="unit"><span class="num m">--</span><span class="lbl">MIN</span></div><div class="unit"><span class="num s">--</span><span class="lbl">SEC</span></div></div></div>
+<div class="dose" data-time="2026-11-28T03:48:00Z"><div class="dosehead"><span class="dosename">DOSE 4 • FINAL</span><span class="status">Loading</span></div><div class="when">NOV 28 • 03:48 UTC</div><div class="count"><div class="unit"><span class="num d">--</span><span class="lbl">DAYS</span></div><div class="unit"><span class="num h">--</span><span class="lbl">HRS</span></div><div class="unit"><span class="num m">--</span><span class="lbl">MIN</span></div><div class="unit"><span class="num s">--</span><span class="lbl">SEC</span></div></div></div>
+</div>
+<div class="rule"></div>
+<p class="small"><strong style="color:#ff6572">DOSE 4 MUST BE TAKEN 12 HOURS BEFORE WAR.</strong><br>Four doses total • 8-hour intervals • Schedule anchored to Torn server time (UTC)</p>
+</section>
+<footer>SINISTER SICKS • WAR COUNTDOWN</footer>
+</main>
+<script>
+const warAt = Date.parse('2026-11-28T15:48:00Z');
+const pad = n => String(n).padStart(2,'0');
+function parts(ms){const t=Math.max(0,Math.floor(ms/1000));return {d:Math.floor(t/86400),h:Math.floor(t%86400/3600),m:Math.floor(t%3600/60),s:t%60,done:ms<=0};}
+function paint(prefix,p){document.getElementById(prefix+'-days').textContent=p.d;document.getElementById(prefix+'-hours').textContent=pad(p.h);document.getElementById(prefix+'-minutes').textContent=pad(p.m);document.getElementById(prefix+'-seconds').textContent=pad(p.s);}
+function tick(){
+ const now=Date.now();paint('war',parts(warAt-now));
+ document.querySelectorAll('.dose').forEach(card=>{
+  const target=Date.parse(card.dataset.time),p=parts(target-now);
+  card.querySelector('.d').textContent=p.d;card.querySelector('.h').textContent=pad(p.h);card.querySelector('.m').textContent=pad(p.m);card.querySelector('.s').textContent=pad(p.s);
+  card.querySelector('.status').textContent=p.done?'TIME REACHED':'TAKE IN';
+ });
+}
+tick();setInterval(tick,1000);
+</script>
+</body>
+</html>
