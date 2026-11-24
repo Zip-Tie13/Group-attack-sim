@@ -217,7 +217,7 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"state-request"},()=>{if(isLeader)sendGameState();});
  channel.subscribe(async status=>{
   if(status==="SUBSCRIBED"){
-   await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:creator,ready:false,online:true});
+   await trackPresence();
    $("room").classList.remove("hidden");$("lobby").classList.add("hidden");$("roomCodeLabel").textContent=roomCode;
    $("chatPopup").classList.remove("hidden");$("roomMessage").textContent="";
    if(creator){leaderId=Number(player.playerId||player.player_id);isLeader=true;renderRoom();}
