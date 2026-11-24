@@ -114,7 +114,51 @@ Deno.serve(async (req: Request) => {
       }, 403);
     }
 
-    return respond({ success: true, playerId, playerName, factionId: 57348, factionName: "SINISTER SICKS" });
+    // Fetch the member's life bar and battle stats. The API key stays here
+    // on the server and is never returned to the browser or other players.
+    const [barsResponse, battleStatsResponse] = await Promise.all([
+      fetch(`https://api.torn.com/v2/user/bars?key=${key}`),
+      fetch(`https://api.torn.com/v2/user/battlestats?key=${key}`),
+    ]);
+    const barsData = await barsResponse.json().catch(() => ({}));
+    const battleStatsData = await battleStatsResponse.json().catch(() => ({}));
+
+    if (!barsResponse.ok || barsData.error) {
+      return respond({
+        success: false,
+        error: "Torn could not read your health bar. Your API key must include User > Bars access (Minimal Access or higher).",
+        tornErrorCode: barsData.error?.code ?? null,
+      }, 403);
+    }
+    if (!battleStatsResponse.ok || battleStatsData.error) {
+      return respond({
+        success: false,
+        error: "Torn could not read your battle stats. Your API key must include User > Battlestats access (Limited Access or higher).",
+        tornErrorCode: battleStatsData.error?.code ?? null,
+      }, 403);
+    }
+
+    const life = barsData.bars?.life;
+    const stats = battleStatsData.battlestats;
+    if (!life || !stats?.strength || !stats?.defense || !stats?.speed || !stats?.dexterity) {
+      return respond({ success: false, error: "Torn did not return the health and battle-stat fields required by the simulator. Check your API key selections and try again." }, 502);
+    }
+
+    return respond({
+      success: true,
+      playerId,
+      playerName,
+      factionId: 57348,
+      factionName: "SINISTER SICKS",
+      healthCurrent: Number(life.current),
+      healthMax: Number(life.maximum),
+      battleStats: {
+        strength: Number(stats.strength.value),
+        defense: Number(stats.defense.value),
+        speed: Number(stats.speed.value),
+        dexterity: Number(stats.dexterity.value),
+      },
+    });
   } catch (_error) {
     return respond({ success: false, error: "The login service could not reach Torn. Please try again." }, 500);
   }
