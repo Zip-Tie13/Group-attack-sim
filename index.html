@@ -107,7 +107,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 <section class="panel wide">
 <div id="battleActionArea">
 <div class="row"><div><h2 id="playerName">Faction Member</h2><div class="status">Live multiplayer practice</div><div id="myHealth" class="small">Your HP: 5000 / 5000</div></div><button class="gray" onclick="resetBattle()">RESET</button></div>
-<h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">2500 / 2500 HP</strong></div>
+<h2 style="margin-top:12px">Practice Opponent</h2><div class="opponent"><strong>Training Target</strong><strong id="hpText">5000 / 5000 HP</strong></div>
 <div class="health"><div id="hpBar"></div></div>
 <div class="arena">
  <div class="weapon-dock" aria-label="Practice weapons">
@@ -167,7 +167,7 @@ const SUPABASE_URL="https://nzrrqchdewvycrprbsos.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
 let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
 let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false,botTurnToken=0;
-let game={hp:2500,maxHp:2500,attackNumber:1,flashUsed:false,started:false,deaths:true,memberDeaths:true,botDeaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{},dead:[]};
+let game={hp:5000,maxHp:5000,attackNumber:1,flashUsed:false,started:false,deaths:true,memberDeaths:true,botDeaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{},playerMaxHp:{},playerStats:{},dead:[]};
 const $=id=>document.getElementById(id);
 function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function addLog(message){const box=$("log");const line=document.createElement("div");line.textContent=new Date().toLocaleTimeString()+" — "+message;box.appendChild(line);box.scrollTop=box.scrollHeight;}
@@ -232,7 +232,7 @@ function syncMembers(){
  members=Array.from(unique.values());const lead=members.find(m=>m.isLeader);if(lead)leaderId=Number(lead.playerId);
  isLeader=Number(player.playerId||player.player_id)===Number(leaderId);renderRoom();
 }
-async function trackPresence(){if(channel)await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:isLeader,ready:readyFlag,online:true});}
+async function trackPresence(){if(channel)await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:isLeader,ready:readyFlag,online:true,healthCurrent:player.healthCurrent,healthMax:player.healthMax,battleStats:player.battleStats||{}});}
 function renderRoom(){
  $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
  $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
@@ -242,7 +242,17 @@ function renderRoom(){
 function renderMembers(){
  const list=$("memberList");list.innerHTML="";
  const ordered=members.slice();if($("shuffleToggle")&&$("shuffleToggle").checked)ordered.sort(()=>Math.random()-.5);
- ordered.forEach(m=>{const div=document.createElement("div");div.className="member";const left=document.createElement("span");left.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");const right=document.createElement("span");right.className=m.afk?"afk":(m.ready?"ready":"notready");right.textContent=m.afk?"AFK":(m.ready?"READY":"NOT READY");div.append(left,right);list.appendChild(div);});
+ ordered.forEach(m=>{
+  const id=String(m.playerId),div=document.createElement("div");div.className="member";
+  const info=document.createElement("span");info.style.display="flex";info.style.flexDirection="column";info.style.gap="3px";
+  const name=document.createElement("strong");name.textContent=(m.name||"Faction member")+(m.isLeader?" (LEADER)":"");
+  const hp=game.playerHp?.[id]??m.healthCurrent??0,max=game.playerMaxHp?.[id]??m.healthMax??0,stats=m.battleStats||{};
+  const details=document.createElement("span");details.className="small";
+  details.textContent="HP "+Number(hp).toLocaleString()+"/"+Number(max).toLocaleString()+" | STR "+Number(stats.strength||0).toLocaleString()+" DEF "+Number(stats.defense||0).toLocaleString()+" SPD "+Number(stats.speed||0).toLocaleString()+" DEX "+Number(stats.dexterity||0).toLocaleString();
+  info.append(name,details);
+  const right=document.createElement("span");right.className=m.afk?"afk":(m.ready?"ready":"notready");right.textContent=m.afk?"AFK":(m.ready?"READY":"NOT READY");
+  div.append(info,right);list.appendChild(div);
+ });
  bots.forEach(b=>{const id=String(b.id),isDead=(game.dead||[]).map(String).includes(id),hp=game.playerHp?.[id]??500;const div=document.createElement("div");div.className="member";div.innerHTML="<span>"+safeText(b.name)+" (BOT)"+(isDead?" — ELIMINATED":" — "+hp+" HP")+"</span><span class='"+(isDead?"dead":"status")+"'>"+(isDead?"DEAD":"IN FIGHT")+"</span>";list.appendChild(div);});
  if(!members.length)list.textContent="Waiting for faction members...";
 }
@@ -296,11 +306,18 @@ async function startBattle(){
  if(!isLeader||!readyCheckActive||!allReady())return;
  $("attackLogPanel").classList.remove("hidden");
  botTurnToken++;
- game={hp:2500,maxHp:2500,attackNumber:1,firstCorrectAttackDone:false,flashUsed:false,tempUsedBy:{},openingTempPending:false,openingTempUsed:false,openingTempPlayerId:"",started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},dead:[],turnOrder:[...new Set(readyOrder.length?readyOrder:buildAttackOrder())],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{},memberTurnDone:{}};
- members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();
+ game={hp:5000,maxHp:5000,attackNumber:1,firstCorrectAttackDone:false,flashUsed:false,tempUsedBy:{},openingTempPending:false,openingTempUsed:false,openingTempPlayerId:"",started:true,deaths:$("deathToggle").checked,memberDeaths:$("deathToggle").checked,botDeaths:$("botDeathToggle").checked,opponent:readStats(),baseOpponent:readStats(),tempThrows:0,playerHp:{},playerMaxHp:{},playerStats:{},dead:[],turnOrder:[...new Set(readyOrder.length?readyOrder:buildAttackOrder())],currentTurnId:"",startedAt:Date.now(),attacks:[],lastAttackAt:{},memberTurnDone:{}};
+ members.forEach(m=>{
+  const id=String(m.playerId),current=m.healthCurrent==null?5000:Number(m.healthCurrent),maximum=m.healthMax==null?5000:Number(m.healthMax);
+  game.playerHp[id]=Number.isFinite(current)?Math.max(0,current):5000;
+  game.playerMaxHp[id]=Number.isFinite(maximum)&&maximum>0?maximum:5000;
+  game.playerStats[id]=m.battleStats||{};
+  if(game.memberDeaths&&game.playerHp[id]===0)game.dead.push(id);
+ });
+ game.outOfTurnCounts={};prepareBotHealth();
  game.memberTurnDone={};
  const initialMaxBlue=Math.max(0,activeTurnOrder().length-1);
- const firstLiveMember=String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ const firstLiveMember=String(activeTurnOrder().find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
  game.openingTempPlayerId="";game.openingTempPending=false;
  game.attackNumber=initialMaxBlue;game.currentTurnId=firstLiveMember;
  readyCheckActive=false;readyDeadline=0;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");$("battleActionArea").classList.remove("hidden");renderGame();addLog("Practice round started.");setTimeout(()=>$("battle").scrollIntoView({behavior:"smooth",block:"start"}),80);runBotTurns();
@@ -380,7 +397,7 @@ function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Wait for your live-player turn: blue must be one below the yellow total.";return;}
- if(game.memberDeaths&&(game.playerHp[me]||5000)<=0)return;
+ if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)*3/100));
  const payload={weapon:weapon,damage:damage,retaliation:retaliation,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
@@ -391,7 +408,7 @@ function flashbang(){
  const maxBlue=Math.max(0,activeTurnOrder().length-1);game.tempUsedBy=game.tempUsedBy||{};
  if(game.tempUsedBy[me]){$("battleNotice").textContent="You have already used your temp this battle.";return;}
  if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Use your temp on your live-player turn.";return;}
- if(game.memberDeaths&&(game.playerHp[me]||5000)<=0)return;
+ if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
 }
@@ -429,7 +446,7 @@ function applyAttack(p,local){
   game.hp=Math.max(0,game.hp-(Number(p.damage)||0));
   const actorHpId=String(p.actorId||p.playerId||"");
   const takesDamage=p.isBot?!!game.botDeaths:!!game.memberDeaths;
-  if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):5000;game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
+  if(takesDamage){const maxHp=p.isBot?(Number(bots.find(b=>String(b.id)===actorHpId)?.maxHp)||460):(Number(game.playerMaxHp?.[actorHpId])||5000);game.playerHp[actorHpId]=Math.max(0,(game.playerHp[actorHpId]??maxHp)-(Number(p.retaliation)||0));if(game.playerHp[actorHpId]===0){game.dead=game.dead||[];if(!game.dead.map(String).includes(actorHpId)){game.dead.push(actorHpId);addLog(p.name+" was eliminated by the training opponent.");}}}
   addLog(p.name+" used "+p.weapon+" for "+p.damage+" damage."+(outOfTurn?" — OUT OF TURN (actual #"+actualPosition+", expected #"+expectedPosition+", blue "+blue+"/"+liveWindow+").":""));
  }
  advanceAttackTurn(!outOfTurn,actor);renderGame();
@@ -475,7 +492,7 @@ function runBotTurns(){
 function renderGame(){
  $("hpText").textContent=game.hp+" / "+game.maxHp+" HP";$("hpBar").style.width=(game.hp/game.maxHp*100)+"%";updateTurnPosition();
  const me=String(player.playerId||player.player_id);const knockedOut=!!(game.memberDeaths&&game.dead&&game.dead.map(String).includes(me));
- $("myHealth").textContent="Your HP: "+(game.playerHp[me]??5000)+" / 5000";
+ $("myHealth").textContent="Your HP: "+(game.playerHp[me]??5000)+" / "+(game.playerMaxHp?.[me]??5000);
  $("battleActionArea").classList.toggle("hidden",knockedOut&&!spectating);
  $("battleNotice").textContent=spectating?"You are watching this round.":(knockedOut?"You are knocked out. Choose REJOIN or WATCH.":(game.tempUsedBy&&game.tempUsedBy[me]?"You have used your temp for this battle.":""));
  game.tempUsedBy=game.tempUsedBy||{};const maxBlue=Math.max(0,activeTurnOrder().length-1);$("tempButton").disabled=spectating||knockedOut||!!game.tempUsedBy[me]||String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue;
@@ -501,9 +518,22 @@ $("battle").classList.remove("hidden");
  $("battleReport").classList.remove("hidden");$("battleReport").classList.add("battle-report-overlay");
 }
 function closeBattleReport(){$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");if(!game.started)$("battle").classList.add("hidden");}
-async function resetBattle(){if(!isLeader)return;$("attackLogPanel").classList.remove("hidden");botTurnToken++;game.hp=2500;game.maxHp=2500;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.openingTempPending=false;game.openingTempUsed=false;game.openingTempPlayerId="";game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};const resetMaxBlue=Math.max(0,activeTurnOrder().length-1);const resetFirstLiveMember=String(game.turnOrder.find(id=>members.some(m=>String(m.playerId)===String(id)))||"");game.openingTempPlayerId="";game.openingTempPending=false;game.attackNumber=resetMaxBlue;game.currentTurnId=resetFirstLiveMember;game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");members.forEach(m=>game.playerHp[String(m.playerId)]=5000);game.outOfTurnCounts={};prepareBotHealth();await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();}
+async function resetBattle(){
+ if(!isLeader)return;
+ $("attackLogPanel").classList.remove("hidden");botTurnToken++;
+ game.hp=5000;game.maxHp=5000;game.attackNumber=1;game.firstCorrectAttackDone=false;game.flashUsed=false;game.tempUsedBy={};game.openingTempPending=false;game.openingTempUsed=false;game.openingTempPlayerId="";game.started=true;game.memberDeaths=$("deathToggle").checked;game.botDeaths=$("botDeathToggle").checked;game.deaths=game.memberDeaths;game.dead=[];game.playerHp={};game.playerMaxHp={};game.playerStats={};game.opponent=game.baseOpponent?{...game.baseOpponent}:readStats();game.tempThrows=0;game.turnOrder=[...new Set(readyOrder.length?readyOrder:buildAttackOrder())];game.memberTurnDone={};
+ members.forEach(m=>{
+  const id=String(m.playerId),current=m.healthCurrent==null?5000:Number(m.healthCurrent),maximum=m.healthMax==null?5000:Number(m.healthMax);
+  game.playerHp[id]=Number.isFinite(current)?Math.max(0,current):5000;game.playerMaxHp[id]=Number.isFinite(maximum)&&maximum>0?maximum:5000;game.playerStats[id]=m.battleStats||{};
+  if(game.memberDeaths&&game.playerHp[id]===0)game.dead.push(id);
+ });
+ const resetMaxBlue=Math.max(0,activeTurnOrder().length-1),resetFirstLiveMember=String(activeTurnOrder().find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ game.openingTempPlayerId="";game.openingTempPending=false;game.attackNumber=resetMaxBlue;game.currentTurnId=resetFirstLiveMember;game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};
+ $("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");game.outOfTurnCounts={};prepareBotHealth();
+ await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();
+}
 async function rejoinBattle(){
- const me=String(player.playerId||player.player_id);game.playerHp[me]=5000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
+ const me=String(player.playerId||player.player_id);game.playerHp[me]=Number(game.playerMaxHp?.[me])||Number(player.healthMax)||5000;game.dead=(game.dead||[]).filter(x=>String(x)!==me);spectating=false;
  renderGame();addLog(player.playerName+" rejoined the practice round.");
  if(channel){await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});await channel.send({type:"broadcast",event:"system-log",payload:{message:player.playerName+" rejoined the practice round."}});}
 }
