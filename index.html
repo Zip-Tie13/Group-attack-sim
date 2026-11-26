@@ -209,6 +209,8 @@ async function connectRoom(code,creator){
  channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();renderRoom();}});
  channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
+ channel.on("broadcast",{event:"out-of-turn-attempt"},({payload})=>{if(isLeader&&payload&&payload.actorId){game.outOfTurnCounts=game.outOfTurnCounts||{};const id=String(payload.actorId);game.outOfTurnCounts[id]=(Number(game.outOfTurnCounts[id])||0)+1;channel.send({type:"broadcast",event:"out-of-turn-count",payload:{actorId:id,count:game.outOfTurnCounts[id]}});}});
+ channel.on("broadcast",{event:"out-of-turn-count"},({payload})=>{if(payload&&payload.actorId){game.outOfTurnCounts=game.outOfTurnCounts||{};game.outOfTurnCounts[String(payload.actorId)]=Number(payload.count)||0;}});
  channel.on("broadcast",{event:"battle-start"},({payload})=>{game=payload.game;bots=payload.bots||bots;game.started=true;readyCheckActive=false;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");renderGame();$("battle").classList.remove("hidden");addLog("Practice round started.");});
  channel.on("broadcast",{event:"battle-reset"},({payload})=>{game=payload.game;bots=payload.bots||bots;$("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");renderGame();addLog("Leader reset the practice round.");});
  channel.on("broadcast",{event:"battle-end"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||bots;game.started=false;readyCheckActive=false;clearInterval(readyTimer);renderGame();showBattleReport();renderRoom();}});
@@ -393,10 +395,15 @@ function advanceAttackTurn(wasCorrect,attackerId){
  }
  updateTurnPosition();
 }
+function recordOutOfTurnAttempt(me){
+ const id=String(me||"");if(!id)return;
+ if(isLeader){game.outOfTurnCounts=game.outOfTurnCounts||{};game.outOfTurnCounts[id]=(Number(game.outOfTurnCounts[id])||0)+1;channel.send({type:"broadcast",event:"out-of-turn-count",payload:{actorId:id,count:game.outOfTurnCounts[id]}});}
+ else if(channel){channel.send({type:"broadcast",event:"out-of-turn-attempt",payload:{actorId:id}});}
+}
 function attack(weapon){
  if(!game.started||spectating||game.hp<=0)return;const me=String(player.playerId||player.player_id);
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
- if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Wait for your live-player turn: blue must be one below the yellow total.";return;}
+ if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn attack attempt recorded. Wait for your live-player turn.";return;}
  if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)*3/100));
@@ -407,7 +414,7 @@ function flashbang(){
  if(!game.started||spectating)return;const me=String(player.playerId||player.player_id);
  const maxBlue=Math.max(0,activeTurnOrder().length-1);game.tempUsedBy=game.tempUsedBy||{};
  if(game.tempUsedBy[me]){$("battleNotice").textContent="You have already used your temp this battle.";return;}
- if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){$("battleNotice").textContent="Use your temp on your live-player turn.";return;}
+ if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn temp attempt recorded. Wait for your live-player turn.";return;}
  if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
