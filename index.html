@@ -466,7 +466,7 @@ function applyAttack(p,local){
  }
  advanceAttackTurn(!outOfTurn,actor);renderGame();
  if(game.hp===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("Training target defeated!");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
- else if(activeTurnOrder().length===0){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("All players and practice bots have been eliminated.");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
+ else if(!(game.turnOrder||[]).some(id=>!((game.dead||[]).map(String)).includes(String(id))&&members.some(m=>String(m.playerId)===String(id)))){game.started=false;readyCheckActive=false;clearInterval(readyTimer);addLog("All faction members have been eliminated. Round over.");showBattleReport();if(isLeader&&channel)channel.send({type:"broadcast",event:"battle-end",payload:{game:game,bots:bots}});renderRoom();}
  else if(isLeader)runBotTurns();
 }
 function opponentBotScale(){
