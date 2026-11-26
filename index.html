@@ -363,8 +363,11 @@ function advanceAttackTurn(wasCorrect,attackerId){
  game.memberTurnDone=game.memberTurnDone||{};
 
  if(maxBlue===0){
+  // With one survivor left, keep that survivor as the active attacker.
+  // The round ends only when there are no living participants or the target is defeated.
   game.attackNumber=0;
-  game.currentTurnId="";
+  game.memberTurnDone={};
+  game.currentTurnId=String(livingMembers[0]||"");
  }else if(actorIsBot){
   // Bots move the blue counter toward the live-player window.
   const shown=Number(game.attackNumber)||1;
