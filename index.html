@@ -445,8 +445,10 @@ function applyAttack(p,local){
  const actualPosition=actorIndex+1;
  const actorIsBot=!!p.isBot||bots.some(b=>String(b.id)===actor);
  const blue=Number(game.attackNumber)||0;
- const outOfTurn=actor!==expectedActor||p.outOfTurnAtSource===true;
- // Carry the attacker's out-of-turn result with the broadcast so the leader's final report cannot lose it during state timing differences.
+ // Only the leader's live room state can decide whether an attack is out of turn.
+ // A member's local turn pointer can lag behind broadcasts, so never let a non-leader
+ // mark a valid attack as out of turn and carry that false flag to the leader.
+ const outOfTurn=isLeader?actor!==String(game.currentTurnId||""):false;
  p.outOfTurnAtSource=outOfTurn;
  p.expectedPosition=expectedPosition;
  p.actualPosition=actualPosition;
