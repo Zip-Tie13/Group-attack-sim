@@ -226,6 +226,7 @@ async function connectRoom(code,creator){
    $("room").classList.remove("hidden");$("lobby").classList.add("hidden");$("roomCodeLabel").textContent="";
    $("chatPopup").classList.remove("hidden");$("roomMessage").textContent="";
    syncMembers();
+   if(isLeader)await trackPresence();
    await channel.send({type:"broadcast",event:"state-request",payload:{}});
    setTimeout(()=>{syncMembers();},1200);
    renderRoom();
