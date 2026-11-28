@@ -170,6 +170,7 @@ const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
 let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
 let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false,botTurnToken=0;
 let chatHistory=[];
+let unreadChatCount=0;
 let game={hp:5000,maxHp:5000,attackNumber:1,flashUsed:false,started:false,deaths:true,memberDeaths:true,botDeaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{},playerMaxHp:{},playerStats:{},dead:[]};
 const $=id=>document.getElementById(id);
 function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -557,14 +558,14 @@ async function rejoinBattle(){
 function watchBattle(){
  spectating=true;renderGame();addLog(player.playerName+" is watching the practice round.");
 }
-function updateChatCount(){$("chatCount").textContent=String(chatHistory.length);}
+function updateChatCount(){$("chatCount").textContent=String(unreadChatCount);}
 function renderChatHistory(){const box=$("chatBox");box.innerHTML="";chatHistory.forEach(item=>{const line=document.createElement("div");line.textContent=(item.name||"Member")+": "+(item.message||"");box.appendChild(line);});box.scrollTop=box.scrollHeight;updateChatCount();}
 function restoreChatHistory(history){const known=new Set(chatHistory.map(item=>item.id).filter(Boolean));history.forEach(item=>{if(item&&item.message){const id=item.id||("legacy-"+item.name+"-"+item.message+"-"+item.at);if(!known.has(id)){chatHistory.push({...item,id});known.add(id);}}});renderChatHistory();}
-function appendChat(name,message,id){if(!message)return;const messageId=id||("chat-"+Date.now()+"-"+Math.random().toString(36).slice(2));if(chatHistory.some(item=>item.id===messageId))return;chatHistory.push({id:messageId,name:String(name||"Member"),message:String(message),at:Date.now()});const line=document.createElement("div");line.textContent=String(name||"Member")+": "+String(message);$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;updateChatCount();}
+function appendChat(name,message,id){if(!message)return;const messageId=id||("chat-"+Date.now()+"-"+Math.random().toString(36).slice(2));if(chatHistory.some(item=>item.id===messageId))return;chatHistory.push({id:messageId,name:String(name||"Member"),message:String(message),at:Date.now()});const chatIsOpen=!$("chatWindow").classList.contains("hidden");if(!chatIsOpen)unreadChatCount++;const line=document.createElement("div");line.textContent=String(name||"Member")+": "+String(message);$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;updateChatCount();}
 async function sendChat(){const input=$("chatMessage"),message=input.value.trim();if(!message||!channel)return;input.value="";const id="chat-"+Date.now()+"-"+Math.random().toString(36).slice(2);appendChat(player.playerName,message,id);await channel.send({type:"broadcast",event:"chat",payload:{id:id,name:player.playerName,message:message}});}
-function toggleChat(){$("chatWindow").classList.toggle("hidden");if(!$("chatWindow").classList.contains("hidden"))$("chatBox").scrollTop=$("chatBox").scrollHeight;}
+function toggleChat(){const opening=$("chatWindow").classList.contains("hidden");$("chatWindow").classList.toggle("hidden");if(opening){unreadChatCount=0;updateChatCount();$("chatBox").scrollTop=$("chatBox").scrollHeight;}}
 async function sendGameState(){if(channel)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots,chatHistory:chatHistory}});}
-async function leaveRoom(){clearInterval(readyTimer);if(channel){try{await channel.untrack();await client.removeChannel(channel);}catch(e){}channel=null;}roomCode="";members=[];bots=[];chatHistory=[];$("chatBox").innerHTML="";updateChatCount();game.started=false;$("room").classList.add("hidden");$("lobby").classList.remove("hidden");$("chatPopup").classList.add("hidden");$("chatWindow").classList.add("hidden");}
+async function leaveRoom(){clearInterval(readyTimer);if(channel){try{await channel.untrack();await client.removeChannel(channel);}catch(e){}channel=null;}roomCode="";members=[];bots=[];chatHistory=[];unreadChatCount=0;$("chatBox").innerHTML="";updateChatCount();game.started=false;$("room").classList.add("hidden");$("lobby").classList.remove("hidden");$("chatPopup").classList.add("hidden");$("chatWindow").classList.add("hidden");}
 </script>
 </body>
 </html>
