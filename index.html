@@ -43,7 +43,9 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
 .ready{color:#7de39a;font-weight:bold}.notready{color:#e8b85b}.dead{color:#ff7777}
 .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.statgrid label{font-size:12px;color:#aab4c3}
-#chatPopup{position:fixed;bottom:10px;left:10px;right:auto;z-index:10;border-radius:25px;padding:13px 18px}
+#chatPopup{position:fixed;bottom:10px;left:10px;right:auto;z-index:10;border-radius:25px;padding:13px 18px;display:flex;align-items:center;gap:9px}
+#chatCount{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:999px;background:#facc15;color:#241b00;font-size:12px;font-weight:900;border:1px solid #fde68a}
+#chatBox{height:225px;overflow-y:auto;overscroll-behavior:contain;background:#0c1016;padding:8px;border-radius:6px;font-size:13px;scroll-behavior:smooth}
 #chatWindow{position:fixed;bottom:66px;left:10px;right:auto;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
@@ -159,7 +161,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 </section>
 </main>
 
-<button id="chatPopup" class="blue hidden" onclick="toggleChat()">GROUP CHAT</button>
+<button id="chatPopup" class="blue hidden" onclick="toggleChat()">GROUP CHAT <span id="chatCount">0</span></button>
 <div id="chatWindow" class="hidden"><div class="row"><strong>GROUP CHAT</strong><button class="gray" onclick="toggleChat()">CLOSE</button></div><div id="chatBox"></div><div class="row"><input id="chatMessage" placeholder="Type a message"><button class="blue" onclick="sendChat()">SEND</button></div></div>
 
 <script>
@@ -167,6 +169,7 @@ const SUPABASE_URL="https://nzrrqchdewvycrprbsos.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_nvcbRNjqUFl5CSlgI7vnfA_SSuhOg7Q";
 let client=null,player=null,channel=null,roomCode="",leaderId=0,isLeader=false;
 let members=[],bots=[],readyOrder=[],readyCheckActive=false,readyDeadline=0,readyTimer=null,readyFlag=false,spectating=false,botTurnToken=0;
+let chatHistory=[];
 let game={hp:5000,maxHp:5000,attackNumber:1,flashUsed:false,started:false,deaths:true,memberDeaths:true,botDeaths:true,opponent:{strength:500,defense:500,speed:500,dex:500},playerHp:{},playerMaxHp:{},playerStats:{},dead:[]};
 const $=id=>document.getElementById(id);
 function safeText(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -188,7 +191,8 @@ async function connectRoom(code,creator){
  $("roomMessage").textContent="Connecting to room...";
  channel=client.channel("sinister-sicks-room-"+roomCode,{config:{broadcast:{self:false},presence:{key:String(player.playerId||player.player_id)}}});
  channel.on("presence",{event:"sync"},()=>{syncMembers();});
- channel.on("broadcast",{event:"chat"},({payload})=>appendChat(payload.name,payload.message));
+ channel.on("broadcast",{event:"chat"},({payload})=>appendChat(payload.name,payload.message,payload.id));
+
  channel.on("broadcast",{event:"ready-check"},({payload})=>{
  readyCheckActive=!!payload.active;readyDeadline=payload.deadline||0;if(Array.isArray(payload.readyOrder))readyOrder=payload.readyOrder.map(String);
  if(payload.expired){const afkIds=(payload.afkIds||[]).map(String);members.forEach(m=>{m.afk=afkIds.includes(String(m.playerId));});}
@@ -206,7 +210,7 @@ async function connectRoom(code,creator){
  else renderReadyPanel();
 });
  channel.on("broadcast",{event:"ready-state"},({payload})=>{const m=members.find(x=>Number(x.playerId)===Number(payload.playerId));if(m){m.ready=!!payload.ready;m.afk=false;}renderMembers();renderReadyPanel();updateReadyStatus();});
- channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];renderGame();renderRoom();}});
+ channel.on("broadcast",{event:"game-state"},({payload})=>{if(payload&&payload.game){game=payload.game;bots=payload.bots||[];if(Array.isArray(payload.chatHistory))restoreChatHistory(payload.chatHistory);renderGame();renderRoom();}});
  channel.on("broadcast",{event:"system-log"},({payload})=>{if(payload&&payload.message)addLog(payload.message);});
  channel.on("broadcast",{event:"attack"},({payload})=>applyAttack(payload,false));
  channel.on("broadcast",{event:"out-of-turn-attempt"},({payload})=>{if(isLeader&&payload&&payload.actorId){game.outOfTurnCounts=game.outOfTurnCounts||{};const id=String(payload.actorId);game.outOfTurnCounts[id]=(Number(game.outOfTurnCounts[id])||0)+1;channel.send({type:"broadcast",event:"out-of-turn-count",payload:{actorId:id,count:game.outOfTurnCounts[id]}});}});
@@ -553,11 +557,14 @@ async function rejoinBattle(){
 function watchBattle(){
  spectating=true;renderGame();addLog(player.playerName+" is watching the practice round.");
 }
-function appendChat(name,message){const line=document.createElement("div");line.textContent=name+": "+message;$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;}
-async function sendChat(){const input=$("chatMessage"),message=input.value.trim();if(!message||!channel)return;input.value="";appendChat(player.playerName,message);await channel.send({type:"broadcast",event:"chat",payload:{name:player.playerName,message:message}});}
-function toggleChat(){$("chatWindow").classList.toggle("hidden");}
-async function sendGameState(){if(channel)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots}});}
-async function leaveRoom(){clearInterval(readyTimer);if(channel){try{await channel.untrack();await client.removeChannel(channel);}catch(e){}channel=null;}roomCode="";members=[];bots=[];game.started=false;$("room").classList.add("hidden");$("lobby").classList.remove("hidden");$("chatPopup").classList.add("hidden");$("chatWindow").classList.add("hidden");}
+function updateChatCount(){$("chatCount").textContent=String(chatHistory.length);}
+function renderChatHistory(){const box=$("chatBox");box.innerHTML="";chatHistory.forEach(item=>{const line=document.createElement("div");line.textContent=(item.name||"Member")+": "+(item.message||"");box.appendChild(line);});box.scrollTop=box.scrollHeight;updateChatCount();}
+function restoreChatHistory(history){const known=new Set(chatHistory.map(item=>item.id).filter(Boolean));history.forEach(item=>{if(item&&item.message){const id=item.id||("legacy-"+item.name+"-"+item.message+"-"+item.at);if(!known.has(id)){chatHistory.push({...item,id});known.add(id);}}});renderChatHistory();}
+function appendChat(name,message,id){if(!message)return;const messageId=id||("chat-"+Date.now()+"-"+Math.random().toString(36).slice(2));if(chatHistory.some(item=>item.id===messageId))return;chatHistory.push({id:messageId,name:String(name||"Member"),message:String(message),at:Date.now()});const line=document.createElement("div");line.textContent=String(name||"Member")+": "+String(message);$("chatBox").appendChild(line);$("chatBox").scrollTop=$("chatBox").scrollHeight;updateChatCount();}
+async function sendChat(){const input=$("chatMessage"),message=input.value.trim();if(!message||!channel)return;input.value="";const id="chat-"+Date.now()+"-"+Math.random().toString(36).slice(2);appendChat(player.playerName,message,id);await channel.send({type:"broadcast",event:"chat",payload:{id:id,name:player.playerName,message:message}});}
+function toggleChat(){$("chatWindow").classList.toggle("hidden");if(!$("chatWindow").classList.contains("hidden"))$("chatBox").scrollTop=$("chatBox").scrollHeight;}
+async function sendGameState(){if(channel)await channel.send({type:"broadcast",event:"game-state",payload:{game:game,bots:bots,chatHistory:chatHistory}});}
+async function leaveRoom(){clearInterval(readyTimer);if(channel){try{await channel.untrack();await client.removeChannel(channel);}catch(e){}channel=null;}roomCode="";members=[];bots=[];chatHistory=[];$("chatBox").innerHTML="";updateChatCount();game.started=false;$("room").classList.add("hidden");$("lobby").classList.remove("hidden");$("chatPopup").classList.add("hidden");$("chatWindow").classList.add("hidden");}
 </script>
 </body>
 </html>
