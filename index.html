@@ -43,10 +43,10 @@ button:disabled{opacity:.4;cursor:not-allowed}.blue{background:#1767ad}.green{ba
 .member{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #343d4b;font-size:14px}
 .ready{color:#7de39a;font-weight:bold}.notready{color:#e8b85b}.dead{color:#ff7777}
 .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.statgrid label{font-size:12px;color:#aab4c3}
-#chatPopup{position:fixed;bottom:10px;left:10px;right:auto;z-index:10;border-radius:25px;padding:13px 18px;display:flex;align-items:center;gap:9px}
+#chatPopup{position:fixed;bottom:10px;left:10px;right:auto;z-index:2147483645;border-radius:25px;padding:13px 18px;display:flex;align-items:center;gap:9px}
 #chatCount{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:999px;background:#facc15;color:#241b00;font-size:12px;font-weight:900;border:1px solid #fde68a}
 #chatBox{height:225px;overflow-y:auto;overscroll-behavior:contain;background:#0c1016;padding:8px;border-radius:6px;font-size:13px;scroll-behavior:smooth}
-#chatWindow{position:fixed;bottom:66px;left:10px;right:auto;width:min(360px,calc(100vw - 20px));height:340px;z-index:10;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
+#chatWindow{position:fixed;bottom:66px;left:10px;right:auto;width:min(360px,calc(100vw - 20px));height:340px;z-index:2147483645;background:#1c222c;border:1px solid #465266;border-radius:10px;padding:10px;box-shadow:0 4px 25px #000}
 #chatBox{height:225px;overflow:auto;background:#0c1016;padding:8px;border-radius:6px;font-size:13px}
 #chatWindow input{width:calc(100% - 82px)}#chatWindow button{width:68px}
 @media(min-width:760px){main{max-width:900px;margin:auto}.battlegrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.battlegrid .wide{grid-column:1/-1}}\n.attack-log-panel{grid-column:1/-1!important;margin-top:0}.attack-log-panel #log{height:125px;min-height:125px;overflow-y:auto;scroll-behavior:smooth}
@@ -250,7 +250,8 @@ function renderRoom(){
  $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
  $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
  $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started&&$("battleReport").classList.contains("hidden"));
- renderMembers();renderBots();updateReadyStatus();renderReadyPanel();
+ if(channel&&player)$("chatPopup").classList.remove("hidden");
+  renderMembers();renderBots();updateReadyStatus();renderReadyPanel();
 }
 function renderMembers(){
  const list=$("memberList");list.innerHTML="";
@@ -447,6 +448,10 @@ function applyAttack(p,local){
  // The leader's currentTurnId is the authoritative expected attacker at the instant this attack arrives.
  const expected=String(isLeader?(game.currentTurnId||""):(p.expectedTurnId||game.currentTurnId||""));
  const at=Number(p.attackAt)||Date.now();
+  // Leader rejects stale or out-of-order attacks without advancing the turn.
+  if(isLeader&&actor!==expected){game.outOfTurnCounts=game.outOfTurnCounts||{};game.outOfTurnCounts[actor]=(Number(game.outOfTurnCounts[actor])||0)+1;channel?.send({type:"broadcast",event:"out-of-turn-count",payload:{actorId:actor,count:game.outOfTurnCounts[actor]}});return;}
+  // Each live member may act only once during their turn window.
+  if(!bots.some(b=>String(b.id)===actor)&&game.memberTurnDone?.[actor])return;
  game.attacks=game.attacks||[];game.lastAttackAt=game.lastAttackAt||{};
  const previous=Number(game.lastAttackAt[actor]||game.startedAt||at);const elapsed=Math.max(0,at-previous);
  const actorIndex=activeOrder.indexOf(actor);
@@ -498,7 +503,9 @@ function runBotTurns(){
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  // Continue through every living bot even when blue has reached its cap.
  if(!actor||maxBlue===0)return;
- const bot=bots.find(b=>String(b.id)===actor);
+ // A bot may act only when the current turn belongs to a bot, never during a live member turn.
+  if(members.some(m=>String(m.playerId)===actor&&!((game.dead||[]).map(String).includes(actor))))return;
+  const bot=bots.find(b=>String(b.id)===actor);
  if(!bot)return;
  const token=++botTurnToken;
  const scale=opponentBotScale();
