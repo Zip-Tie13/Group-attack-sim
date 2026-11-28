@@ -362,34 +362,30 @@ function advanceAttackTurn(wasCorrect,attackerId){
  const actorIsBot=bots.some(b=>String(b.id)===actor);
  game.memberTurnDone=game.memberTurnDone||{};
 
+ // Advance the blue counter after every successful member or bot attack.
+ // Cycle from 1 through the current maximum; a solo survivor displays 0.
  if(maxBlue===0){
-  // With one survivor left, keep that survivor as the active attacker.
-  // The round ends only when there are no living participants or the target is defeated.
   game.attackNumber=0;
-  game.memberTurnDone={};
-  game.currentTurnId=String(livingMembers[0]||"");
- }else if(actorIsBot){
-  // Bots move the blue counter toward the live-player window.
-  const shown=Number(game.attackNumber)||1;
-  if(shown>=maxBlue-1||!livingBots.length){
-   game.attackNumber=maxBlue;
+ }else{
+  const shown=Number(game.attackNumber)||0;
+  game.attackNumber=shown>=maxBlue?1:shown+1;
+ }
+
+ if(actorIsBot){
+  const botIndex=livingBots.indexOf(actor);
+  const nextBot=livingBots[botIndex+1];
+  if(nextBot){
+   game.currentTurnId=String(nextBot);
+  }else{
    game.memberTurnDone={};
    game.currentTurnId=String(livingMembers[0]||"");
-  }else{
-   game.attackNumber=shown+1;
-   const botIndex=livingBots.indexOf(actor);
-   game.currentTurnId=String(livingBots[(botIndex+1)%livingBots.length]||"");
   }
  }else{
-  // Blue stays pinned at one below the yellow total while live members take turns.
-  game.attackNumber=maxBlue;
   game.memberTurnDone[actor]=true;
   const waitingMember=livingMembers.find(id=>!game.memberTurnDone[String(id)]);
   if(waitingMember){
    game.currentTurnId=String(waitingMember);
   }else if(livingBots.length){
-   game.memberTurnDone={};
-   game.attackNumber=1;
    game.currentTurnId=String(livingBots[0]);
   }else{
    game.memberTurnDone={};
@@ -409,7 +405,7 @@ function attack(weapon){
  // Final-survivor safeguard: if the only living participant is this member, restore their turn locally.
  if(remaining.length===1&&String(remaining[0])===me){game.currentTurnId=me;game.attackNumber=0;}
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
- if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn attack attempt recorded. Wait for your live-player turn.";return;}
+ if(String(game.currentTurnId||"")!==me){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn attack attempt recorded. Wait for your live-player turn.";return;}
  if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const damage=weapon==="Rifle"?180:weapon==="Pistol"?65:weapon==="Knife"?110:0;
  const retaliation=Math.max(1,Math.round((game.opponent.strength||500)*3/100));
@@ -422,7 +418,7 @@ function flashbang(){
  if(remaining.length===1&&String(remaining[0])===me){game.currentTurnId=me;game.attackNumber=0;}
  const maxBlue=Math.max(0,activeTurnOrder().length-1);game.tempUsedBy=game.tempUsedBy||{};
  if(game.tempUsedBy[me]){$("battleNotice").textContent="You have already used your temp this battle.";return;}
- if(String(game.currentTurnId||"")!==me||Number(game.attackNumber)!==maxBlue){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn temp attempt recorded. Wait for your live-player turn.";return;}
+ if(String(game.currentTurnId||"")!==me){recordOutOfTurnAttempt(me);$("battleNotice").textContent="Out-of-turn temp attempt recorded. Wait for your live-player turn.";return;}
  if(game.memberDeaths&&(game.playerHp[me]??5000)<=0)return;
  const payload={weapon:"Flashbang",damage:0,retaliation:0,playerId:Number(me),actorId:me,name:player.playerName,expectedTurnId:String(game.currentTurnId||""),attackAt:Date.now()};
  applyAttack(payload,true);channel.send({type:"broadcast",event:"attack",payload:payload});
@@ -448,8 +444,7 @@ function applyAttack(p,local){
  const actualPosition=actorIndex+1;
  const actorIsBot=!!p.isBot||bots.some(b=>String(b.id)===actor);
  const blue=Number(game.attackNumber)||0;
- const wrongBlue=actorIsBot?blue>=liveWindow:blue!==liveWindow;
- const outOfTurn=actor!==expectedActor||wrongBlue||p.outOfTurnAtSource===true;
+ const outOfTurn=actor!==expectedActor||p.outOfTurnAtSource===true;
  // Carry the attacker's out-of-turn result with the broadcast so the leader's final report cannot lose it during state timing differences.
  p.outOfTurnAtSource=outOfTurn;
  p.expectedPosition=expectedPosition;
@@ -488,7 +483,7 @@ function runBotTurns(){
  const actor=String(game.currentTurnId||"");
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  // Bots are forbidden from acting at the live-player window (blue == yellow - 1).
- if(!actor||(Number(game.attackNumber)>=maxBlue&&maxBlue>1))return;
+ if(!actor)return;
  const bot=bots.find(b=>String(b.id)===actor);
  if(!bot)return;
  const token=++botTurnToken;
@@ -498,7 +493,7 @@ function runBotTurns(){
  const payload={weapon:"Bot strike",damage:damage,retaliation:retaliation,playerId:0,actorId:actor,name:bot.name,isBot:true,expectedTurnId:actor,attackAt:0};
  const delay=800+Math.floor(Math.random()*1001);
  setTimeout(()=>{
-  if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor||(Number(game.attackNumber)>=Math.max(0,activeTurnOrder().length-1)&&Math.max(0,activeTurnOrder().length-1)>1))return;
+  if(token!==botTurnToken||!game.started||String(game.currentTurnId)!==actor)return;
   payload.attackAt=Date.now();
   applyAttack(payload,true);
   channel.send({type:"broadcast",event:"attack",payload:payload});
