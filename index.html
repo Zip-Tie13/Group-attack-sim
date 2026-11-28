@@ -362,33 +362,33 @@ function advanceAttackTurn(wasCorrect,attackerId){
  const actorIsBot=bots.some(b=>String(b.id)===actor);
  game.memberTurnDone=game.memberTurnDone||{};
 
- // Advance the blue counter after every successful member or bot attack.
- // Cycle from 1 through the current maximum; a solo survivor displays 0.
- if(maxBlue===0){
-  game.attackNumber=0;
- }else{
-  const shown=Number(game.attackNumber)||0;
-  game.attackNumber=shown>=maxBlue?1:shown+1;
- }
-
  if(actorIsBot){
+  // Bots advance the counter one position at a time, then yield at yellow - 1.
+  game.attackNumber=maxBlue===0?0:Math.min(maxBlue,(Number(game.attackNumber)||0)+1);
   const botIndex=livingBots.indexOf(actor);
   const nextBot=livingBots[botIndex+1];
-  if(nextBot){
+  if(game.attackNumber<maxBlue&&nextBot){
    game.currentTurnId=String(nextBot);
   }else{
-   game.memberTurnDone={};
+   game.attackNumber=maxBlue;
    game.currentTurnId=String(livingMembers[0]||"");
+   game.memberTurnDone={};
   }
  }else{
   game.memberTurnDone[actor]=true;
   const waitingMember=livingMembers.find(id=>!game.memberTurnDone[String(id)]);
   if(waitingMember){
+   // Keep the live-player window open until every living member has taken a turn.
+   game.attackNumber=maxBlue;
    game.currentTurnId=String(waitingMember);
   }else if(livingBots.length){
+   // All live members have attacked: restart the bot sequence at position 1.
+   game.memberTurnDone={};
+   game.attackNumber=maxBlue===0?0:1;
    game.currentTurnId=String(livingBots[0]);
   }else{
    game.memberTurnDone={};
+   game.attackNumber=maxBlue===0?0:Math.min(maxBlue,(Number(game.attackNumber)||0)+1);
    game.currentTurnId=String(livingMembers[0]||"");
   }
  }
@@ -482,8 +482,8 @@ function runBotTurns(){
  if(!isLeader||!game.started||game.openingTempPending)return;
  const actor=String(game.currentTurnId||"");
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
- // Bots are forbidden from acting at the live-player window (blue == yellow - 1).
- if(!actor)return;
+ // Stop bot automation at the live-player window (blue == yellow - 1).
+ if(!actor||maxBlue===0||Number(game.attackNumber)>=maxBlue)return;
  const bot=bots.find(b=>String(b.id)===actor);
  if(!bot)return;
  const token=++botTurnToken;
