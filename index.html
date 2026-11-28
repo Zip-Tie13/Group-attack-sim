@@ -223,7 +223,7 @@ async function connectRoom(code,creator){
  channel.subscribe(async status=>{
   if(status==="SUBSCRIBED"){
    await trackPresence();
-   $("room").classList.remove("hidden");$("lobby").classList.add("hidden");$("roomCodeLabel").textContent="";$("chatPopup").classList.remove("hidden");
+   $("room").classList.remove("hidden");$("lobby").classList.add("hidden");$("roomCodeLabel").textContent="";$("chatPopup").classList.remove("hidden");$("chatPopup").style.setProperty("display","flex","important");$("chatPopup").style.setProperty("z-index","2147483647","important");
    $("chatPopup").classList.remove("hidden");$("roomMessage").textContent="";
    syncMembers();
    if(isLeader)await trackPresence();
@@ -247,6 +247,11 @@ function syncMembers(){
 }
 async function trackPresence(){if(channel)await channel.track({playerId:Number(player.playerId||player.player_id),name:player.playerName,isLeader:isLeader,joinedAt:roomJoinedAt,ready:readyFlag,online:true,healthCurrent:player.healthCurrent,healthMax:player.healthMax,battleStats:player.battleStats||{}});}
 function renderRoom(){
+ // Reattach the floating chat controls to the document root and force the bubble visible in-room.
+ const chatButton=$("chatPopup"),chatPanel=$("chatWindow");
+ if(chatButton.parentElement!==document.body)document.body.appendChild(chatButton);
+ if(chatPanel.parentElement!==document.body)document.body.appendChild(chatPanel);
+ if(channel&&player){chatButton.classList.remove("hidden");chatButton.style.setProperty("display","flex","important");chatButton.style.setProperty("position","fixed","important");chatButton.style.setProperty("z-index","2147483647","important");chatPanel.style.setProperty("z-index","2147483647","important");}
  $("leaderLabel").textContent=isLeader?"You are the practice leader.":"Leader: "+(members.find(m=>m.isLeader)?.name||"Waiting for leader");
  $("leaderLobbyControls").classList.toggle("hidden",!isLeader);$("memberLobbyControls").classList.toggle("hidden",isLeader);
  $("leaderSettings").classList.toggle("hidden",!isLeader);$("battle").classList.toggle("hidden",!game.started&&$("battleReport").classList.contains("hidden"));
@@ -331,7 +336,7 @@ async function startBattle(){
  game.outOfTurnCounts={};prepareBotHealth();
  game.memberTurnDone={};
  const initialMaxBlue=Math.max(0,activeTurnOrder().length-1);
- const firstLiveMember=String(activeTurnOrder().find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ const firstLiveMember=String(activeTurnOrder().find(id=>!bots.some(b=>String(b.id)===String(id)))||"");
  game.openingTempPlayerId="";game.openingTempPending=false;
  game.attackNumber=initialMaxBlue;game.currentTurnId=firstLiveMember;
  readyCheckActive=false;readyDeadline=0;clearInterval(readyTimer);$("readyPanel").classList.remove("ready-overlay");$("readyPanel").classList.add("hidden");$("battleActionArea").classList.remove("hidden");await channel.send({type:"broadcast",event:"battle-start",payload:{game:game,bots:bots}});$("battle").classList.remove("hidden");$("battleActionArea").classList.remove("hidden");renderGame();addLog("Practice round started.");setTimeout(()=>$("battle").scrollIntoView({behavior:"smooth",block:"start"}),80);runBotTurns();
@@ -369,7 +374,7 @@ function updateTurnPosition(){
 function advanceAttackTurn(wasCorrect,attackerId){
  const dead=new Set((game.dead||[]).map(String));
  const order=game.turnOrder||[];
- const livingMembers=order.filter(id=>!dead.has(String(id))&&members.some(m=>String(m.playerId)===String(id)));
+ const livingMembers=order.filter(id=>!dead.has(String(id))&&!bots.some(b=>String(b.id)===String(id)));
  const livingBots=order.filter(id=>!dead.has(String(id))&&bots.some(b=>String(b.id)===String(id)));
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
  const actor=String(attackerId||"");
@@ -561,7 +566,7 @@ async function resetBattle(){
   game.playerHp[id]=Number.isFinite(current)?Math.max(0,current):5000;game.playerMaxHp[id]=Number.isFinite(maximum)&&maximum>0?maximum:5000;game.playerStats[id]=m.battleStats||{};
   if(game.memberDeaths&&game.playerHp[id]===0)game.dead.push(id);
  });
- const resetMaxBlue=Math.max(0,activeTurnOrder().length-1),resetFirstLiveMember=String(activeTurnOrder().find(id=>members.some(m=>String(m.playerId)===String(id)))||"");
+ const resetMaxBlue=Math.max(0,activeTurnOrder().length-1),resetFirstLiveMember=String(activeTurnOrder().find(id=>!bots.some(b=>String(b.id)===String(id)))||"");
  game.openingTempPlayerId="";game.openingTempPending=false;game.attackNumber=resetMaxBlue;game.currentTurnId=resetFirstLiveMember;game.startedAt=Date.now();game.attacks=[];game.lastAttackAt={};game.memberTurnDone={};
  $("battleReport").classList.add("hidden");$("battleReport").classList.remove("battle-report-overlay");game.outOfTurnCounts={};prepareBotHealth();
  await channel.send({type:"broadcast",event:"battle-reset",payload:{game:game,bots:bots}});renderGame();addLog("Leader reset the practice battle.");runBotTurns();
