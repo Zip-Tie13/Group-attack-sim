@@ -367,7 +367,8 @@ function advanceAttackTurn(wasCorrect,attackerId){
   game.attackNumber=maxBlue===0?0:Math.min(maxBlue,(Number(game.attackNumber)||0)+1);
   const botIndex=livingBots.indexOf(actor);
   const nextBot=livingBots[botIndex+1];
-  if(game.attackNumber<maxBlue&&nextBot){
+  if(nextBot){
+   // Let every living bot attack once; the blue counter caps at yellow - 1.
    game.currentTurnId=String(nextBot);
   }else{
    game.attackNumber=maxBlue;
@@ -482,8 +483,8 @@ function runBotTurns(){
  if(!isLeader||!game.started||game.openingTempPending)return;
  const actor=String(game.currentTurnId||"");
  const maxBlue=Math.max(0,activeTurnOrder().length-1);
- // Stop bot automation at the live-player window (blue == yellow - 1).
- if(!actor||maxBlue===0||Number(game.attackNumber)>=maxBlue)return;
+ // Continue through every living bot even when blue has reached its cap.
+ if(!actor||maxBlue===0)return;
  const bot=bots.find(b=>String(b.id)===actor);
  if(!bot)return;
  const token=++botTurnToken;
