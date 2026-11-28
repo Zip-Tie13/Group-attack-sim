@@ -356,6 +356,8 @@ function updateTurnPosition(){
   const active=activeTurnOrder();
   const limit=Math.max(0,active.length-1);
   let current=Number(game.attackNumber)||1;
+  // Freeze the blue counter at yellow minus one for the entire live-member phase.
+  if(game.turnPhase==="members")current=limit;
   // If eliminations shrink the allowed range, hold at the new maximum.
   // Do not reset to 1 here: only an actual attack advances/wraps the counter.
   if(limit===0)current=0;
